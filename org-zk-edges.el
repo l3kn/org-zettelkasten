@@ -106,8 +106,7 @@
           (source (buffer-file-name)))
       (when inverse
         (with-current-buffer (find-file-noselect target)
-          (org-zk--add-edge-to-buffer inveres target))
-        (org-zk--add-edge-to-file target inverse source))))
+          (org-zk--add-edge-to-buffer inverse source)))))
 
 (defun org-zk-file-edges (path)
   (with-current-buffer (find-file-noselect path)

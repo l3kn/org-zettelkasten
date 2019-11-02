@@ -71,7 +71,7 @@
                ts-next
                (ts-adjust 'year 1 ts-next))))))))
 
-(defmethod org-zk-repeat-repetitions-in-range ((timestamp org-cache-timestamp) from to)
+(defmethod org-zk-repeat-repetitions-in-range ((timestamp org-zk-cache-timestamp) from to)
   "Generate a list of all repetitions of TS between FROM and TO.
 Hourly repetitions are *not* supported.  When using this, no
 assumptions should be made about the order of the results"
@@ -87,11 +87,11 @@ assumptions should be made about the order of the results"
        (org-zk-repeat-next (ts-adjust 'day 1 ts-next) ts unit value)))
     results))
 
-(defmethod org-zk-repeat-repetitions-next-n-days ((timestamp org-cache-timestamp) n-days)
+(defmethod org-zk-repeat-repetitions-next-n-days ((timestamp org-zk-cache-timestamp) n-days)
   "Generate a list of all repetitions of TIMESTAMP in the next N-DAYS days.
 Hourly repetitions are *not* supported.  When using this, no
 assumptions should be made about the order of the results.
-Returns a list of *ts* timestamps, not org-cache-timestamps"
+Returns a list of *ts* timestamps, not org-zk-cache-timestamps"
   (let* ((from (org-zk-repeat--ts-now))
          (to (ts-adjust 'day n-days 'minute -1 from)))
     (if (oref timestamp unit)
@@ -101,7 +101,7 @@ Returns a list of *ts* timestamps, not org-cache-timestamps"
             (list ts)
           (list))))))
 
-(defmethod org-zk-repeat-repetition-next ((timestamp org-cache-timestamp))
+(defmethod org-zk-repeat-repetition-next ((timestamp org-zk-cache-timestamp))
   (let ((now (org-zk-repeat--ts-now))
         (ts (oref timestamp ts)))
     (if (oref timestamp unit)

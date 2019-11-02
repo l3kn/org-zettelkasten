@@ -50,7 +50,9 @@ return the subcategory for this path, if it exists."
 (defun org-zk-category-files-recursively (category path)
   (mapcar
    (lambda (f) (cons f category))
-   (directory-files-recursively path ".org$" nil)))
+   (remove-if
+    (lambda (f) (string-prefix-p "." (file-name-base f)))
+    (directory-files-recursively path ".org$" nil))))
 
 ;; Based on ~directory-files-recursively~
 (cl-defun org-zk-category-files (category &optional (parent-path ""))
@@ -76,7 +78,8 @@ of CATEGORY."
                      (setq result
                            (nconc result
                                   (org-zk-category-files-recursively category full-file))))))))
-              ((string= (file-name-extension file) "org")
+              ((and (string= (file-name-extension file) "org")
+                    (not (string-prefix-p "." file)))
                (push (cons (expand-file-name file dir) category)
                      files)))))
     (nconc result files)))
@@ -102,7 +105,10 @@ managed by org-zettelkasten."
           filename
           (org-zk-category-subcategories category)
           (expand-file-name (org-zk-category-path category) parent-path))
-         category))))
+         (plist-put
+          category
+          :path
+          (expand-file-name (org-zk-category-path category) parent-path))))))
 
 (defun org-zk-category-for-file (filename)
   "Find the (sub)category FILENAME belongs to.
@@ -152,6 +158,6 @@ then call ACTION with the category that was selected."
   (let ((category (org-zk-category-for-file (buffer-file-name))))
     (if category
         (funcall action category)
-      (org-zk-category-prompt action))))
+      (org-zk-category-prompt (lambda (cat) (funcall action (cdr cat)))))))
 
 (provide 'org-zk-categories)

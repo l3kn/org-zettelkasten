@@ -1,6 +1,6 @@
 (require 'org-quickselect-effort)
 
-(setq org-task-list-format
+(setq org-zk-task-list-format
       (vector
        '("Tag" 8 t)
        '("P" 1 t)
@@ -9,7 +9,7 @@
        '("Effort" 6 t)
        '("Tags" 20 t)))
 
-(defun org-task-list--sort-todo-keyword (kw)
+(defun org-zk-task-list--sort-todo-keyword (kw)
   (cond
    ((string= kw "NEXT") 6)
    ((string= kw "TODO") 5)
@@ -19,7 +19,7 @@
    ((string= kw "CANCELLED") 1)
    (t 0)))
 
-(defun org-task-list--sort-priority (prio)
+(defun org-zk-task-list--sort-priority (prio)
   (cond
    ((eql prio ?A) 3)
    ((eql prio nil) 2)
@@ -27,17 +27,17 @@
    ((eql prio ?C) 1)
    (t 0)))
 
-(defvar org-task-list--sort-predicates
+(defvar org-zk-task-list--sort-predicates
   (list
-   (list (lambda (e) (org-task-list--sort-todo-keyword (oref e todo-keyword))) #'> #'<)
-   (list (lambda (e) (org-task-list--sort-priority (oref e priority))) #'> #'<)
+   (list (lambda (e) (org-zk-task-list--sort-todo-keyword (oref e todo-keyword))) #'> #'<)
+   (list (lambda (e) (org-zk-task-list--sort-priority (oref e priority))) #'> #'<)
    (list (lambda (e) (org-cache-get-keyword (oref e parent) "TITLE")) #'string> #'string<)
    (list (lambda (e) (oref e title)) #'string> #'string<)))
 
 ;; Keyword
 ;; Prio
 ;; Title
-(cl-defun org-task-list--sort-predicate (a b &optional (predicates org-task-list--sort-predicates))
+(cl-defun org-zk-task-list--sort-predicate (a b &optional (predicates org-zk-task-list--sort-predicates))
   (message "sorting")
   (if (null predicates)
       nil
@@ -47,12 +47,12 @@
         (cond
          ((funcall pred1 va vb) t)
          ((funcall pred2 va vb) nil)
-         (t (org-task-list--sort-predicate a b (cdr predicates))))))))
+         (t (org-zk-task-list--sort-predicate a b (cdr predicates))))))))
 
-(defun org-task-list--sort (headlines)
-  (sort headlines #'org-task-list--sort-predicate))
+(defun org-zk-task-list--sort (headlines)
+  (sort headlines #'org-zk-task-list--sort-predicate))
 
-(defun org-task-list-tabulate (headlines)
+(defun org-zk-task-list-tabulate (headlines)
   (mapcar
    (lambda (headline)
      (list
@@ -68,37 +68,37 @@
                   ":"))))
    headlines))
 
-(defun org-task-list-buffer ()
+(defun org-zk-task-list-buffer ()
   (get-buffer-create "Org Tasks"))
 
-(defun org-task-list-show (headlines)
+(defun org-zk-task-list-show (headlines)
   (message "Headlines %d" (length headlines))
-  (setq headlines (org-task-list--sort headlines))
+  (setq headlines (org-zk-task-list--sort headlines))
   (message "Headlines 2 %d" (length headlines))
-  (with-current-buffer (org-task-list-buffer)
-    (org-task-list-mode)
-    (setq tabulated-list-format org-task-list-format)
+  (with-current-buffer (org-zk-task-list-buffer)
+    (org-zk-task-list-mode)
+    (setq tabulated-list-format org-zk-task-list-format)
     (tabulated-list-init-header)
-    (setq tabulated-list-entries (org-task-list-tabulate headlines))
+    (setq tabulated-list-entries (org-zk-task-list-tabulate headlines))
     (setq tabulated-list-sort-key nil)
     (tabulated-list-print)
     (switch-to-buffer (current-buffer))))
 
 
-(define-derived-mode org-task-list-mode tabulated-list-mode "Org Tasks"
+(define-derived-mode org-zk-task-list-mode tabulated-list-mode "Org Tasks"
   "Major mode for listing org tasks"
   (hl-line-mode))
 
-(setq org-task-list-mode-map
+(setq org-zk-task-list-mode-map
       (let ((map (make-sparse-keymap)))
         (set-keymap-parent map tabulated-list-mode-map)
-        (define-key map (kbd "RET") 'org-task-list-open)
-        (define-key map (kbd "e") 'org-task-list-set-effort)
-        (define-key map (kbd "t") 'org-task-list-set-todo)
-        (define-key map (kbd "p") 'org-task-list-set-priority)
+        (define-key map (kbd "RET") 'org-zk-task-list-open)
+        (define-key map (kbd "e") 'org-zk-task-list-set-effort)
+        (define-key map (kbd "t") 'org-zk-task-list-set-todo)
+        (define-key map (kbd "p") 'org-zk-task-list-set-priority)
         map))
 
-(defun org-task-list-open ()
+(defun org-zk-task-list-open ()
   (interactive)
   (let* ((headline (tabulated-list-get-id))
          (parent (oref headline parent))
@@ -106,7 +106,7 @@
     (find-file path)
     (goto-char (oref headline begin))))
 
-(defun org-task-list-set-effort ()
+(defun org-zk-task-list-set-effort ()
   (interactive)
   (let* ((headline (tabulated-list-get-id))
          (parent (oref headline parent))
@@ -124,7 +124,7 @@
       (org-next-tasks)
       (goto-char p))))
 
-(defun org-task-list-set-todo ()
+(defun org-zk-task-list-set-todo ()
   (interactive)
   (let* ((headline (tabulated-list-get-id))
          (parent (oref headline parent))
@@ -138,7 +138,7 @@
       (org-next-tasks)
       (goto-char p))))
 
-(defun org-task-list-set-priority ()
+(defun org-zk-task-list-set-priority ()
   (interactive)
   (let* ((headline (tabulated-list-get-id))
          (parent (oref headline parent))
@@ -152,10 +152,10 @@
       (org-next-tasks)
       (goto-char p))))
 
-(defun org-next-tasks ()
+(defun org-zk-next-tasks ()
   (interactive)
-  (org-task-list-show (org-cache-headline-query
+  (org-zk-task-list-show (org-cache-headline-query
                        '(keyword "GTD_STATE" "active")
                        '(or (todo "NEXT")))))
 
-(provide 'org-task-list)
+(provide 'org-zk-task-list)

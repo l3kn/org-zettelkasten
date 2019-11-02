@@ -18,12 +18,12 @@
 
 (defun org-zk-calendar--time-entries ()
   "Generate a list of all entries with a timestamp.
-Returns a list of elements (headline . org-cache-timestamp)"
+Returns a list of elements (headline . org-zk-cache-timestamp)"
   (let ((entries nil))
     (maphash
      (lambda (key value)
        (setq entries (nconc entries (org-zk-calendar--file-time-entries value))))
-     org-cache--table)
+     org-zk-cache--table)
     entries))
 
 (defvar org-zk-calendar-n-days 14)
@@ -33,7 +33,9 @@ Returns a list of elements (headline . org-cache-timestamp)"
   "Face to highlight entries for the current day"
   :group 'org-zk-calendar)
 
-(defun org-zk-calendar--repeated-time-entries ()
+
+
+(defun org-zk-calendar--repeated-time-entries (n-days)
   "Generate a list of all entries with a timestamp,
 including repetitions of timestamps.
 Returns a list of elements (headline ts type)."
@@ -50,7 +52,7 @@ Returns a list of elements (headline ts type)."
           (list (car entry) repetition (oref (cdr entry) type)))
         (org-zk-repeat-repetitions-next-n-days
          (cdr entry)
-         org-zk-calendar-n-days))))
+         n-days))))
    (org-zk-calendar--time-entries)))
 
 (defun org-zk-calendar-buffer ()
@@ -100,7 +102,7 @@ Returns a list of elements (headline ts type)."
 
 (defun org-zk-calendar ()
   (interactive)
-  (let ((entries (org-zk-calendar--repeated-time-entries)))
+  (let ((entries (org-zk-calendar--repeated-time-entries org-zk-calendar-n-days)))
     (with-current-buffer (org-zk-calendar-buffer)
       (setq tabulated-list-format org-zk-calendar-format)
       (org-zk-calendar-mode)

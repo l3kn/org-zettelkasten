@@ -1,0 +1,80 @@
+* Org Zettelkasten
+A opinionated setup for managing large collections of interlinked org
+files.
+
+It's not ready for use by anyone but myself.
+
+** Design Choices
+- Optimize for performance
+- Full-text search
+- Prefer specific custom code to extending / configuring existing code
+- Prefer small files to large ones split into sections
+- Designed for use with the GTD method
+** TODO Modularity
+I plan on splitting this up into multiple small packages once the
+interfaces are stable.
+** Performance
+Searching a collection of 915 files (160k words) for =NEXT= tasks in
+active projects takes around 5ms.
+
+Running a full-text search against the same collection of files takes
+30ms.
+
+Benchmark were run on a Thinkpad L470 (SSD, i5-2700U 2.5GHz).
+** Cache
+There are a few other packages that provide more advanced / performant
+queries on org-mode files:
+
+- [[https://github.com/alphapapa/org-ql][org-ql]]
+- [[https://github.com/ndwarshuis/org-sql][org-sql]]
+
+This package implements a cache for files and headlines using a hash
+table directly in Emacs, no external database is needed.
+
+To avoid recreating this table on each startup, it can be written to
+disk at regular intervals and when Emacs is closed.
+
+Each file entry has a hash value that is checked against the files
+hash on startup. With this, updating the cache for my collection of
+files takes around 5s.
+
+Cache entries are updated when a =.org= file is saved, created, moved
+or deleted.
+** Xapian
+While a simple =grep= would be sufficient for most searches, this
+package contains a small C++ wrapper for the [[https://xapian.org/][Xapain]] search engine
+library.
+
+This makes it possible to search for files using queries with boolean
+operators and matching of synonyms.
+
+See [[https://xapian.org/docs/queryparser.html][Xapian Docs - Query Parser]] for details on this.
+** Project View
+Files can be tagged as GTD projects using the =#+GTD_STATE= keyword.
+
+Based on this keyword, a view of all (active) projects can be created
+and it's easy to mark a whole project as =on_hold= or =someday= to
+remove it's tasks from the task view.
+
+*** TODO Project Priorities
+I find the priorities built into org-mode very limiting.
+While it's possible to define more priorities than the default =#A=,
+=#B=, =#C=, there is no easy way to assign priorities to projects
+that is then factored in when sorting =NEXT= tasks by priority.
+** Task View
+This package implements its own simple version of the =org-agenda=,
+based on =tabulated-list-mode=.
+
+I mainly use this to get a view of all =NEXT= tasks, sorted by
+priority, to see what I should work on next.
+** Edges and Links Between Files
+Files can contain lists of labeled links (edges) to other files,
+wrapped in a special block.
+*** TODO Outline Sidebar, Visualization
+*** TODO Graph Queries / Graph Database
+I'd like to ask the system questions like “Which concepts are
+introduced in books by $author”.
+
+This might be implemented by syncing file properties and edges to a
+graph database like neo4j or by implementing a Prolog-like language in
+EmacsLisp.
