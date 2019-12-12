@@ -56,6 +56,10 @@ This makes it possible to search for files using queries with boolean
 operators and matching of synonyms.
 
 See [[https://xapian.org/docs/queryparser.html][Xapian Docs - Query Parser]] for details on this.
+
+*** TODO Document dependencies needed
+*** TODO Document installation
+*** TODO Document executable paths
 ** Project View
 Files can be tagged as GTD projects using the =#+GTD_STATE= keyword.
 

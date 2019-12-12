@@ -1,7 +1,7 @@
 (require 'org-zk-cache)
 
-(defvar org-zk-xapian-db-filename "~/src/zettelkasten-xapian/org.db")
-(defvar org-zk-xapian-script-filename "~/src/zettelkasten-xapian/org-xapian")
+(defvar org-zk-xapian-db-filename "~/src/org-zettelkasten/xapian/org.db")
+(defvar org-zk-xapian-script-filename "~/src/org-zettelkasten/xapian/org-xapian")
 
 (defun org-zk-xapian--build-command (args)
   (concat
