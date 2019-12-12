@@ -10,9 +10,9 @@ Now I am become time, the waster of people.
 *** Prefer specific custom code to extending / configuring existing code
 *** Prefer small files to large ones split into sections
 *** Designed for use with the GTD method
-** TODO Modularity
-I plan on splitting this up into multiple small packages once the
-interfaces are stable.
+*** Modular building blocks for flexible systems
+** Long Term Goals
+- Back by graph database
 ** Performance
 Searching a collection of 915 files (160k words) for =NEXT= tasks in
 active projects takes around 5ms.
@@ -57,10 +57,16 @@ and it's easy to mark a whole project as =on_hold= or =someday= to
 remove it's tasks from the task view.
 
 *** TODO Project Priorities
+Similar to tasks, files can be assigned different priorities and
+states in order to represent GTD projects.
+
 I find the priorities built into org-mode very limiting.
 While it's possible to define more priorities than the default =#A=,
 =#B=, =#C=, there is no easy way to assign priorities to projects
 that is then factored in when sorting =NEXT= tasks by priority.
+
+- Nested
+- Multiplicative or additive
 ** Task View
 This package implements its own simple version of the =org-agenda=
 task list. based on =tabulated-list-mode=.
@@ -78,13 +84,6 @@ CLOSED: [2019-12-12 Thu 10:23]
 :END:
 Set source files on function call,
 use projects containing timestamps for this
-** Project View
-Similar to tasks, files can be assigned different priorities and
-states in order to represent GTD projects.
-
-*** TODO Priorities
-- Nested
-- Multiplicative
 ** Edges and Links Between Files
 Files can contain lists of labeled links (edges) to other files,
 wrapped in a special block.
