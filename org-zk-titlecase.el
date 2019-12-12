@@ -1,5 +1,6 @@
 (defvar org-zk-titlecase-prepositions
   (list
+ "vs"
  "in"
  "on"
  "at"
@@ -29,7 +30,7 @@
 (defvar org-zk-titlecase-articles (list "a" "an" "the"))
 
 (defvar org-zk-titlecase-conjunctions (list
-"and" "but" "or" "although" "because" "if" "since" "unless" "until" "while" "either" "or" "neither" "nor"))
+"and" "but" "or" "although" "because" "if" "since" "unless" "until" "while" "either" "or" "neither" "nor" "with"))
 ;; missing: "not only" "but also"
 
 (defun org-zk-titlecase--downcase-p (word)
@@ -40,13 +41,16 @@
      (member word org-zk-titlecase-articles)
      (member word org-zk-titlecase-conjunctions))))
 
-(defun org-zk-titlecase--fully-uppercase-p (word)
+(defun org-zk-titlecase--keep-word-p (word)
   "Check if a word contains only uppercase characters."
-  (equal (upcase word) word))
+  (or (equal (upcase word) word)
+      ;; org code syntax
+      (string-match-p (rx bol "~" (* any) "~" (? (any ";,.")) eol) word)
+      (string-match-p (rx bol "=" (* any) "=" (? (any ";,.")) eol) word)))
 
 (defun org-zk-titlecase--process-word (word)
   (cond
-   ((org-zk-titlecase--fully-uppercase-p word) word)
+   ((org-zk-titlecase--keep-word-p word) word)
    ((org-zk-titlecase--downcase-p word) (downcase word))
    (t (capitalize word))))
 
@@ -55,10 +59,12 @@
   (let* ((words (split-string input))
          (first (pop words)))
     (if (null words)
-        (if (org-zk-titlecase--fully-uppercase-p first)
+        (if (org-zk-titlecase--keep-word-p first)
             first
-            (capitalize first))
-      (concat (capitalize first)
+          (capitalize first))
+      (concat (if (org-zk-titlecase--keep-word-p first)
+                  first
+                  (capitalize first))
               " "
               (mapconcat #'org-zk-titlecase--process-word words " ")))))
 

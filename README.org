@@ -1,15 +1,17 @@
 * Org Zettelkasten
-A opinionated setup for managing large collections of interlinked org
+An opinionated setup for managing large collections of interlinked org
 files.
 
-It's not ready for use by anyone but myself.
+#+begin_quote
+Now I am become time, the waster of people.
+#+end_quote
 
-** Design Choices
-- Optimize for performance
-- Full-text search
-- Prefer specific custom code to extending / configuring existing code
-- Prefer small files to large ones split into sections
-- Designed for use with the GTD method
+** Design Goals
+*** Optimize for performance
+*** Full-text search
+*** Prefer specific custom code to extending / configuring existing code
+*** Prefer small files to large ones split into sections
+*** Designed for use with the GTD method
 ** TODO Modularity
 I plan on splitting this up into multiple small packages once the
 interfaces are stable.
@@ -62,11 +64,29 @@ While it's possible to define more priorities than the default =#A=,
 =#B=, =#C=, there is no easy way to assign priorities to projects
 that is then factored in when sorting =NEXT= tasks by priority.
 ** Task View
-This package implements its own simple version of the =org-agenda=,
-based on =tabulated-list-mode=.
+This package implements its own simple version of the =org-agenda=
+task list. based on =tabulated-list-mode=.
 
 I mainly use this to get a view of all =NEXT= tasks, sorted by
 priority, to see what I should work on next.
+** Calendar View
+Derived from the task view, filtered by tasks due in some span of time.
+*** TODO Allow custom views based on filter rules
+*** TODO Fix handling of links in headings
+*** WAITING Wrapper around org agenda
+CLOSED: [2019-12-12 Thu 10:23]
+:LOGBOOK:
+- State "WAITING"    from "NEXT"       [2019-12-12 Thu 10:23]
+:END:
+Set source files on function call,
+use projects containing timestamps for this
+** Project View
+Similar to tasks, files can be assigned different priorities and
+states in order to represent GTD projects.
+
+*** TODO Priorities
+- Nested
+- Multiplicative
 ** Edges and Links Between Files
 Files can contain lists of labeled links (edges) to other files,
 wrapped in a special block.

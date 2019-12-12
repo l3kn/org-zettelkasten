@@ -1,11 +1,12 @@
 (defun org-zk-escape-filename (str)
   (setq str (replace-regexp-in-string " " "_" str))
-  (setq str (replace-regexp-in-string (rx (not (in "A-Z0-9" "-" "_"))) "" str))
+  (setq str (replace-regexp-in-string
+             (rx (not (in "a-zA-Z0-9" "-" "_"))) "" str))
   (setq str (downcase str))
   str)
 
 (defun org-zk-default-link-fn (file title)
-  (concat "[[file:" file "][" title "]]"))
+  (concat "[[zk_friend:" file "][" title "]]"))
 
 (defun org-zk-default-name-fn (title)
   (org-zk-escape-filename title))
@@ -21,11 +22,11 @@
 
 (defvar org-zk-file-blacklist '("./" "../" ".git/"))
 
-
 (defun org-zk-category-name (p) (plist-get p :name))
 (defun org-zk-category-path (p) (plist-get p :path))
 (defun org-zk-category-recursive-p (p) (plist-get p :recursive))
 (defun org-zk-category-subcategories (p) (plist-get p :subcategories))
+(defun org-zk-category-ignore-p (p) (plist-get p :ignore))
 (defun org-zk-category-link-fn (p)
   (or
    (plist-get p :link-fn)
@@ -48,41 +49,43 @@ return the subcategory for this path, if it exists."
    (org-zk-category-subcategories category)))
 
 (defun org-zk-category-files-recursively (category path)
-  (mapcar
-   (lambda (f) (cons f category))
-   (remove-if
-    (lambda (f) (string-prefix-p "." (file-name-base f)))
-    (directory-files-recursively path ".org$" nil))))
+  (unless (org-zk-category-ignore-p category)
+    (mapcar
+     (lambda (f) (cons f category))
+     (remove-if
+      (lambda (f) (string-prefix-p "." (file-name-base f)))
+      (directory-files-recursively path ".org$" nil)))))
 
 ;; Based on ~directory-files-recursively~
 (cl-defun org-zk-category-files (category &optional (parent-path ""))
   "Generate a list of '(filename project) entries for all files
 of CATEGORY."
-  (let ((result nil)
-        (files nil)
-        (dir (expand-file-name (org-zk-category-path category) parent-path)))
-    (dolist (file (file-name-all-completions "" dir))
-      (unless (member file org-zk-file-blacklist)
-        (cond ((directory-name-p file)
-               (let* ((subcategory (org-zk--subcategory-for-path category file))
-                      (leaf (substring file 0 (1- (length file))))
-                      (full-file (expand-file-name leaf dir)))
-                 ;; Don't follow symlinks to other directories.
-                 (unless (file-symlink-p full-file)
-                   (cond
-                    (subcategory
-                     (setq result
-                           (nconc result
-                                  (org-zk-category-files subcategory dir))))
-                    ((org-zk-category-recursive-p category)
-                     (setq result
-                           (nconc result
-                                  (org-zk-category-files-recursively category full-file))))))))
-              ((and (string= (file-name-extension file) "org")
-                    (not (string-prefix-p "." file)))
-               (push (cons (expand-file-name file dir) category)
-                     files)))))
-    (nconc result files)))
+  (unless (org-zk-category-ignore-p category)
+    (let ((result nil)
+          (files nil)
+          (dir (expand-file-name (org-zk-category-path category) parent-path)))
+      (dolist (file (file-name-all-completions "" dir))
+        (unless (member file org-zk-file-blacklist)
+          (cond ((directory-name-p file)
+                 (let* ((subcategory (org-zk--subcategory-for-path category file))
+                        (leaf (substring file 0 (1- (length file))))
+                        (full-file (expand-file-name leaf dir)))
+                   ;; Don't follow symlinks to other directories.
+                   (unless (file-symlink-p full-file)
+                     (cond
+                      (subcategory
+                       (setq result
+                             (nconc result
+                                    (org-zk-category-files subcategory dir))))
+                      ((org-zk-category-recursive-p category)
+                       (setq result
+                             (nconc result
+                                    (org-zk-category-files-recursively category full-file))))))))
+                ((and (string= (file-name-extension file) "org")
+                      (not (string-prefix-p "." file)))
+                 (push (cons (expand-file-name file dir) category)
+                       files)))))
+      (nconc result files))))
 
 (defun org-zk-files-with-categories ()
   "Generate a list of '(filename project) entries for all files

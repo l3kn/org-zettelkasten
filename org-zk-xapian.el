@@ -1,4 +1,4 @@
-(require 'org-cache)
+(require 'org-zk-cache)
 
 (defvar org-zk-xapian-db-filename "~/src/zettelkasten-xapian/org.db")
 (defvar org-zk-xapian-script-filename "~/src/zettelkasten-xapian/org-xapian")
@@ -21,7 +21,7 @@
   "Refresh the xapian index"
   (interactive)
   (with-temp-buffer
-    (dolist (f (org-cache-files))
+    (dolist (f (org-zk-cache-files))
       (insert f
               " "
               (org-zk-category-name (org-zk-category-for-file f))
@@ -33,26 +33,26 @@
      (current-buffer))
     (message (string-trim (buffer-string)))))
 
-(defun org-zk-xapian-refresh-file (project filename)
+(defun org-zk-xapian-refresh-file (category filename)
   "Updates a single file, expects an expanded file name"
-  (org-zk-xapian-command "index-file" org-zk-xapian-db-filename filename project))
+  (org-zk-xapian-command "index-file" org-zk-xapian-db-filename filename category))
 
 (defun org-zk-xapian-delete-file (filename)
   "Delete the entry for a file, expects an expanded file name"
   (org-zk-xapian-command "delete-entry" org-zk-xapian-db-filename filename))
 
-(defun org-zk-xapian-rename-file (old-filename new-filename new-project-name)
+(defun org-zk-xapian-rename-file (old-filename new-filename new-category-name)
   "Changes the filename of a database entry."
   (org-zk-xapian-command
    "rename-entry"
    org-zk-xapian-db-filename
    old-filename
    new-filename
-   new-project-name))
+   new-category-name))
 
 (defun org-zk-xapian-query (query)
   "Execute a query on the Xapian database.
-Returns a list of lists (file project title accuracy)"
+Returns a list of lists (file category title accuracy)"
   (mapcar
    (lambda (result)
      (let ((parts (split-string result "\t")))
@@ -67,7 +67,7 @@ Returns a list of lists (file project title accuracy)"
 
 (defun org-zk-xapian-delete-file-advice (filename &optional _trash)
   (let ((truename (file-truename filename)))
-    (when (org-cache-get truename)
+    (when (org-zk-cache-get truename)
       (message "Removing xapian file %s" truename)
       (org-zk-xapian-delete-file truename))))
 
@@ -85,8 +85,8 @@ Returns a list of lists (file project title accuracy)"
            (new-truename (file-truename new-filename))
            (old-category (org-zk-category-for-file old-truename))
            (new-category (org-zk-category-for-file new-truename)))
-      (if old-project
-          (if new-project
+      (if old-category
+          (if new-category
               (progn
                 (message
                  "Renaming xapian file %s to %s (%s)"

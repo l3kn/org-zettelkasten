@@ -21,8 +21,8 @@
   (let* ((completion-ignore-case t)
          (prop org-effort-property)
          (cur (org-entry-get nil prop))
-         (allowed (org-property-get-allowed-values nil prop))
-         (existing (mapcar 'list (org-property-values prop)))
+         (allowed (org-property-get-allowed-values nil org-effort-property))
+         (current (mapcar 'list (org-property-values org-effort-property)))
          (heading (nth 4 (org-heading-components)))
          (val (if allowed
                   (org-quickselect-effort-prompt cur allowed)
@@ -30,7 +30,7 @@
                  (concat "Effort" (and cur (string-match "\\S-" cur)
                                        (concat " [" cur "]"))
                          ": ")
-                 existing nil nil "" nil cur))))
-    (org-set-effort val)))
+                 current nil nil "" nil cur))))
+    (org-set-effort nil val)))
 
 (provide 'org-quickselect-effort)

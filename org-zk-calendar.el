@@ -3,17 +3,18 @@
 (defun org-zk-calendar--file-time-entries (cache-file)
   (let ((entries nil))
     (dolist (headline (oref cache-file headlines))
-      (let ((deadline (oref headline deadline))
-            (scheduled (oref headline scheduled))
-            (timestamps (oref headline timestamps)))
-        (if deadline
-            (push (cons headline deadline) entries))
-        (if scheduled
-            (push (cons headline scheduled) entries))
-        (setq entries
-              (nconc entries
-                     (mapcar (lambda (timestamp) (cons headline timestamp))
-                             timestamps)))))
+      (unless (member "fc" (oref headline tags))
+        (let ((deadline (oref headline deadline))
+              (scheduled (oref headline scheduled))
+              (timestamps (oref headline timestamps)))
+          (if deadline
+              (push (cons headline deadline) entries))
+          (if scheduled
+              (push (cons headline scheduled) entries))
+          (setq entries
+                (nconc entries
+                       (mapcar (lambda (timestamp) (cons headline timestamp))
+                               timestamps))))))
     entries))
 
 (defun org-zk-calendar--time-entries ()

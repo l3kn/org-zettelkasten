@@ -1,7 +1,4 @@
-(require 'org-cache)
-
-(define-org-cache-file-query-macro gtd-state (state)
-  `(keyword "GTD_STATE" ,state))
+(require 'org-zk-cache)
 
 (defvar org-zk-projects-gtd-states
   '("active"
@@ -9,6 +6,7 @@
     "someday" ; incubator / someday / maybe
     "blocked" ; blocked by some other project
     "planning" ; planning / brainstorming
+    "cancelled" ; planning / brainstorming
     "done"))
 
 (defun org-zk-projects-set-gtd-state (state)
@@ -18,27 +16,28 @@
     (set-org-option options "GTD_STATE" state)))
 
 (defun org-zk-projects-all ()
-  (org-cache-file-query
-   '(or (gtd-state "active")
-        (gtd-state "on_hold")
-        (gtd-state "blocked")
-        (gtd-state "planning")
-        (gtd-state "someday"))))
+  (org-zk-cache-file-query
+   `(or ,@(--map `(gtd-state ,it) org-zk-projects-gtd-states))))
+
+(define-org-zk-cache-file-query-macro gtd-state (state)
+  `(keyword "GTD_STATE" ,state))
+
+;; TODO: Generate these using a macro
 
 (defun org-zk-projects-active ()
-  (org-cache-file-query '(gtd-state "active")))
+  (org-zk-cache-file-query '(gtd-state "active")))
 
 (defun org-zk-projects-on-hold ()
-  (org-cache-file-query '(gtd-state "on_hold")))
+  (org-zk-cache-file-query '(gtd-state "on_hold")))
 
 (defun org-zk-projects-someday ()
-  (org-cache-file-query '(gtd-state "someday")))
+  (org-zk-cache-file-query '(gtd-state "someday")))
 
 (defun org-zk-projects-blocked ()
-  (org-cache-file-query '(gtd-state "blocked")))
+  (org-zk-cache-file-query '(gtd-state "blocked")))
 
 (defun org-zk-projects-planning ()
-  (org-cache-file-query '(gtd-state "planning")))
+  (org-zk-cache-file-query '(gtd-state "planning")))
 
 (defun org-zk-projects-buffer ()
   (get-buffer-create "*Org Projects*"))
@@ -51,10 +50,10 @@
    (list "TODO" 4 t)))
 
 (defun org-zk-projects-count-next (cached-file)
-  (length (org-cache-file-headline-query cached-file '(todo "NEXT"))))
+  (length (org-zk-cache-file-headline-query cached-file '(todo "NEXT"))))
 
 (defun org-zk-projects-count-todo (cached-file)
-  (length (org-cache-file-headline-query cached-file '(todo "TODO"))))
+  (length (org-zk-cache-file-headline-query cached-file '(todo "TODO"))))
 
 (defun org-zk-projects-tabulate (cached-files)
   (mapcar
@@ -62,8 +61,8 @@
      (list
       (car file)
       (vector
-       (org-cache-get-keyword (cdr file) "GTD_STATE")
-       (org-cache-get-keyword (cdr file) "TITLE")
+       (org-zk-cache-get-keyword (cdr file) "GTD_STATE")
+       (org-zk-cache-get-keyword (cdr file) "TITLE")
        (number-to-string (org-zk-projects-count-next (cdr file)))
        (number-to-string (org-zk-projects-count-todo (cdr file))))))
    cached-files))

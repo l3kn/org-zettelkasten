@@ -1,3 +1,5 @@
+(require 'org-zk-cache)
+
 (defun org-zk-clocking-beginning-of-day ()
   (let ((now (ts-now)))
     (make-ts
@@ -26,11 +28,11 @@
          (dolist (cl (oref hl clocks))
            (incf
             total
-            (org-cache-clock-duration-in-range
+            (org-zk-cache-clock-duration-in-range
              cl
              (org-zk-clocking-beginning-of-day)
              (org-zk-clocking-end-of-day))))))
-     org-cache--table)
+     org-zk-cache--table)
     (ts-human-duration total)))
 
 (defun org-zk-clocking-total-week ()
@@ -41,9 +43,25 @@
          (dolist (cl (oref hl clocks))
            (incf
             total
-            (org-cache-clock-duration-in-range
+            (org-zk-cache-clock-duration-in-range
              cl
              (ts-adjust 'day -6 (org-zk-clocking-beginning-of-day))
              (org-zk-clocking-end-of-day))))))
-     org-cache--table)
+     org-zk-cache--table)
     (ts-human-duration total)))
+
+(defun org-zk-clocking-open ()
+  (let (headlines)
+    (maphash
+     (lambda (key value)
+       (dolist (hl (oref value headlines))
+         (dolist (cl (oref hl clocks))
+           (if (or (null (oref cl end))
+                   (eq (oref cl status) 'active))
+               (push hl headlines)))))
+     org-zk-cache--table)
+    headlines))
+
+(mapcar (lambda (h) (oref h title)) (org-zk-clocking-open))
+
+(provide 'org-zk-clocking)

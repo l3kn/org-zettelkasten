@@ -13,6 +13,7 @@
    (hash :initarg :hash)
    (keywords :initarg :keywords)
    (headlines :initarg :headlines)
+   (links :initarg :links)
    (category :initarg :category)))
 
 (defun make-org-zk-cache-file (path hash)
@@ -21,6 +22,7 @@
                  :hash hash
                  :keywords nil
                  :headlines nil
+                 :links nil
                  :category (org-zk-category-for-file path)))
 
 (defclass org-zk-cache-headline ()
@@ -38,6 +40,19 @@
    (effort :initarg :effort)
    (style :initarg :style)
    (clocks :initarg :clocks)))
+
+(defclass org-zk-cache-link ()
+  ((type :initarg :type)
+   (parent :initarg :parent)
+   (path :initarg :path)
+   (text :initarg :text)))
+
+(defun org-zk-cache-link-from-element (parent el)
+  (make-instance 'org-zk-cache-link
+   :type (org-element-property :type el)
+   :path (org-element-property :path el)
+   :parent parent
+   :text (org-element-interpret-data (org-element-contents el))))
 
 (defclass org-zk-cache-timestamp ()
   ((type :initarg :type)
@@ -160,18 +175,21 @@
    :clocks (org-zk-cache--headline-clocks element)))
 
 (defun org-zk-cache-process-buffer (&optional path)
+  (interactive)
   (let* ((path (or path (buffer-file-name)))
          (entry (org-zk-cache-get path))
-         (buffer-hash (buffer-hash)))
-    (when (or (null entry)
-              (not (string= buffer-hash (oref entry hash))))
-      (message "processing buffer %s" path)
-      (let ((element (org-element-parse-buffer))
-            (object (make-org-zk-cache-file path buffer-hash)))
-        (puthash
-         path
-         (org-zk-cache-process-element element object)
-         org-zk-cache--table)))))
+         (buffer-hash (buffer-hash))
+         (cat (org-zk-category-for-file path)))
+    (if (and cat (not (org-zk-category-ignore-p cat)))
+          (when (or (null entry)
+                    (not (string= buffer-hash (oref entry hash))))
+            (message "processing buffer %s" path)
+            (let ((element (org-element-parse-buffer))
+                  (object (make-org-zk-cache-file path buffer-hash)))
+              (puthash
+               path
+               (org-zk-cache-process-element element object)
+               org-zk-cache--table))))))
 
 ;; Because we would have to enable org-mode anyway,
 ;; using `with-temp-buffer` and `insert-file-contents`
@@ -199,6 +217,9 @@
 (cl-defmethod org-zk-cache-add-headline ((cache-file org-zk-cache-file) (headline org-zk-cache-headline))
   (push headline (oref cache-file headlines)))
 
+(cl-defmethod org-zk-cache-add-link ((cache-file org-zk-cache-file) (link org-zk-cache-link))
+  (push link (oref cache-file links)))
+
 (cl-defmethod org-zk-cache-get-keyword ((cache-file org-zk-cache-file) key)
   (alist-get
    key
@@ -215,6 +236,10 @@
       element
       'headline
     (lambda (headline) (org-zk-cache-process-headline headline object)))
+  (org-element-map
+      element
+      'link
+    (lambda (link) (org-zk-cache-process-link link object)))
   object)
 
 (defun org-zk-cache-process-first-section (element object)
@@ -232,6 +257,9 @@
 ; See: https://orgmode.org/worg/dev/org-element-api.html
 (defun org-zk-cache-process-headline (headline object)
   (org-zk-cache-add-headline object (org-zk-cache-headline-from-element object headline)))
+
+(defun org-zk-cache-process-link (link object)
+  (org-zk-cache-add-link object (org-zk-cache-link-from-element object link)))
 
 ;; TODO: Use category information
 (defun org-zk-cache-create ()
@@ -377,5 +405,45 @@ FN is called with two arguments: the file path and the cached file object"
         (remhash old-path org-zk-cache--table)))))
 
 (advice-add 'rename-file :before #'org-zk-cache-rename-file-advice)
+
+;; Check buffer = dirty? instead
+;; (defun org-zk-cache-advice (&rest _args)
+;;   (interactive)
+;;   (org-zk-cache-process-buffer))
+;;
+;; (advice-add 'org-todo :after #'org-zk-cache-advice)
+;; (advice-add 'org-clock-in :after #'org-zk-cache-advice)
+;; (advice-add 'org-clock-out :after #'org-zk-cache-advice)
+
+;; Org brain speedup code
+
+(defun org-brain--file-targets (file)
+  (let* ((file-relative (org-brain-path-entry-name file))
+         (file-entry-name (org-brain-entry-name file-relative)))
+    (cons file-entry-name file-relative)))
+
+(defun org-brain-keywords (entry)
+  "Get alist of `org-mode' keywords and their values in file ENTRY."
+  (if (org-brain-filep entry)
+      (let ((cache-entry (org-zk-cache-get (org-brain-entry-path entry))))
+        (if cache-entry
+            (oref cache-entry :keywords)
+            (with-temp-buffer
+              (insert
+               (with-temp-buffer
+                 (ignore-errors (insert-file-contents (org-brain-entry-path entry)))
+                 (buffer-substring-no-properties (point-min) (org-brain-first-headline-position))))
+              (org-element-map (org-element-parse-buffer) 'keyword
+                (lambda (kw)
+                  (cons (org-element-property :key kw)
+                        (org-element-property :value kw)))))))
+    (error "Only file entries have keywords")))
+
+;; (buffer-file-name (car (buffer-list)))
+;; using `buffer-modified-p` I can check if the buffer is modified
+;; include this in org-zk-cache-get, check if there is a dirty buffer for this file,
+;; if so, re-scan it.
+;;
+;; In mapping functions, iterate over all dirty buffers & re-process them first.
 
 (provide 'org-zk-cache)

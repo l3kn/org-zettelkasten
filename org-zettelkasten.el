@@ -1,10 +1,12 @@
+(use-package ts)
+
 (require 'org-zk-utils)
 (require 'org-zk-categories)
 (require 'org-zk-titlecase)
 (require 'org-zk-cache)
 (require 'org-zk-xapian)
 (require 'org-zk-xapian-query)
-(require 'org-zk-edges)
+(require 'org-zk-links)
 (require 'org-zk-hydra)
 (require 'org-zk-repeat)
 (require 'org-zk-task-list)
@@ -56,7 +58,7 @@ name-fn to generate a filename."
   (org-zk-category-prompt
    (lambda (category)
      (let* ((category (cdr category))
-            (title (org-zk-titlecase (string-trim (read-string "Title: "))))
+            (title (org-zk-read-title))
             (link-fn (org-zk-category-link-fn category))
             (name-fn (org-zk-category-name-fn category))
             (setup-fn (org-zk-category-setup-fn category))
@@ -126,10 +128,10 @@ point."
   (org-zk--ivy-query
    query
    (lambda (selection)
-      (switch-to-buffer
+     (switch-to-buffer
       (find-file-noselect (cdr selection)))
-      (org-zk-skip-headers)
-      (search-forward query))))
+     (org-zk-skip-headers)
+     (search-forward query))))
 
 (defun org-zk-refresh-after-save ()
   (let* ((filename (buffer-file-name))
