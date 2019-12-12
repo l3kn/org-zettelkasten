@@ -12,7 +12,10 @@ Now I am become time, the waster of people.
 *** Designed for use with the GTD method
 *** Modular building blocks for flexible systems
 ** Long Term Goals
-- Back by graph database
+*** Back by graph database
+E.g. [[https://github.com/indradb/indradb][indradb]]
+*** Integrate with [[https://github.com/remacs/remacs][remacs]]
+For direct bindings from rust to emacs-lisp
 ** Performance
 Searching a collection of 915 files (160k words) for =NEXT= tasks in
 active projects takes around 5ms.
@@ -94,4 +97,4 @@ introduced in books by $author”.
 
 This might be implemented by syncing file properties and edges to a
 graph database like neo4j or by implementing a Prolog-like language in
-EmacsLisp.
+emacs-lisp.
