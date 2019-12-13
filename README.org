@@ -1,7 +1,7 @@
 * Org Zettelkasten
 
 #+begin_quote
-Now I am become time, the waster of people.
+Now I am become time-management, the waster of projects.
 #+end_quote
 
 ** Design Goals
