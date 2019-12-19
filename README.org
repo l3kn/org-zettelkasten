@@ -20,6 +20,7 @@ E.g. [[https://github.com/indradb/indradb][indradb]]
 *** Integrate with [[https://github.com/remacs/remacs][remacs]]
 For direct bindings from rust to emacs-lisp
 *** Replace Xapian with something written in rust
+[[https://github.com/toshi-search/Toshi]]
 ** Performance
 Searching a collection of 915 files (160k words) for =NEXT= tasks in
 active projects takes around 5ms.
