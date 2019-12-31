@@ -1,27 +1,262 @@
 * Org Zettelkasten
+:PROPERTIES:
+:ID:       ae7f78fc-39cc-4eaa-bf0e-3cfa73172dbc
+:END:
+** Inspiration
+:PROPERTIES:
+:ID:       27e5faf6-62c0-46d5-a61c-611ee4062c94
+:END:
+*** David Allen - Getting Things Done                                :book:
+:PROPERTIES:
+:ID:       872a3f20-e7b3-4caa-bd60-8b7b747c326f
+:END:
+*** Lion Kimbro - [[https://users.speakeasy.net/~lion/nb/html/][How to Make a Complete Map of Every Thought You Think]] :website:
+:PROPERTIES:
+:ID:       0692d591-de30-4f72-b8e6-92473487e2b8
+:END:
+*** Niklas Luhman - Zettelkasten
+:PROPERTIES:
+:ID:       b3463c09-00ad-40f6-affe-77427da6fccf
+:END:
+** Stability
+:PROPERTIES:
+:ID:       787a0e30-0456-4535-963c-aa5661df11c4
+:END:
+This project should be considered *unstable* at the moment.
+** Dependencies
+:PROPERTIES:
+:ID:       7a024900-509e-4e01-a2c9-ece290b3e218
+:END:
+- [[https://github.com/abo-abo/swiper][abo-abo/swiper]]
+  For searching / selecting files
+- [[https://github.com/abo-abo/ace-link][abo-abo/ace-link]]
+  For following links
+- [[https://github.com/abo-abo/hydra][abo-abo/hydra]]
+** Full-Text Search
+:PROPERTIES:
+:ID:       119938a8-7308-43d5-b0de-9a805fa7b7cd
+:END:
+While a simple =grep= or =awk= would be sufficient for most searches, this
+package contains a small C++ wrapper for the [[https://xapian.org/][Xapain]] search engine
+library.
 
-#+begin_quote
-Now I am become time-management, the waster of projects.
-#+end_quote
+This makes it possible to search for files using queries with boolean
+operators and matching of synonyms.
 
+See [[https://xapian.org/docs/queryparser.html][Xapian Docs - Query Parser]] for details on this.
+*** NEXT Switch to Rust search engine
+:PROPERTIES:
+:ID:       28483fc4-510c-4991-99d7-33ab4fb544ab
+:END:
+*** TODO Document dependencies needed
+:PROPERTIES:
+:ID:       b1ad8941-7779-4052-81bc-361fb7968544
+:END:
+*** TODO Document installation
+:PROPERTIES:
+:ID:       f9693279-3d96-4a2c-b5c7-a91907a358df
+:END:
+*** TODO Document executable paths
+:PROPERTIES:
+:ID:       88a6fa63-efbf-4702-94c1-d315b6d62051
+:END:
+** Components
+:PROPERTIES:
+:ID:       c38d79aa-1e0e-4a05-acef-07939e9575dc
+:END:
+*** ~org-zk-keywords~
+:PROPERTIES:
+:ID:       3b26e04b-2bfe-4ee1-80c3-50b2cc9f36f9
+:END:
+File-level attributes are stored as =#+KEY: value= org mode keywords.
+These should be placed at the start of the file, not containing any
+newlines before or between keywords.
+
+- ~(org-zk-keywords-set-or-add (key value))~
+- ~(org-zk-keywords-add (key value))~
+- ~(org-zk-keywords-delete (key))~
+
+The macro ~org-zk-def-keyword~ can be used to create commands to set
+keywords to one of a list of predefined values using ~ivy-read~.
+When generating the functions name, the keyword is converted to
+lowercase and "_" are replaced by "-".
+
+**** Example
+:PROPERTIES:
+:ID:       a8aa3b24-16a8-44ab-9001-576cbdbde9a8
+:END:
+#+begin_src emacs-lisp
+(org-zk-def-keyword
+ "GTD_STATE"
+ '("active"
+   "someday"
+   "planning"
+   "cancelled"
+   "done"))
+#+end_src
+
+Generated function: ~org-zk-set-gtd-state~
+*** ~org-zk-cache~
+:PROPERTIES:
+:ID:       1e63a714-eb51-4592-880d-bf8640984991
+:END:
+
+By default, emacs is not fast enough to efficiently search large collections (>1k
+files) for TODO keywords, tags, dates etc.
+
+To get around this limitation, a cache is introduced.
+
+This cache works by running ~org-element-process-buffer~ each time a
+file is saved or the buffer moves out of focus (e.g. when switching to
+another window or buffer).
+
+Sub-modules can register on element types to compute data on a file or
+headline level that can then be used to implement fast views on all
+the data in the zettelkasten, e.g. for listing open projects, tasks or
+calendar entries, generating clocking reports and statistics or for
+use with the integrated spaced repetition system.
+
+A query language is implemented on this cache for building custom
+views on the data.
+*** ~org-zk-links~
+:PROPERTIES:
+:ID:       19346837-601f-49f7-901e-f421224915b1
+:END:
+
+There are three types of links, *parent*, *child* and *friend*.
+
+When adding a link to some target, a link pointing back to the
+current file is added to the link list of the target file,
+using the inverse (parent <-> child, friend <-> friend) link type.
+
+Links to other files that are not part of the main text are placed in
+a list at the beginning of the file, right after the keywords.
+
+When adding links, the current search term can be used to create a
+new note using ~ivy-immediate-done~, by default bound to ~C-M-j~.
+
+I've rebound it to ~C-d~.
+
+#+begin_src emacs-lisp
+(define-key ivy-minibuffer-map (kbd "C-d") 'ivy-immediate-done)
+#+end_src
+
+The ~org-zk-hydra~ can be used to quickly add links to the current file.
+If *follow-mode* is active, after adding a link the target file is
+opened. This is useful for quickly creating "mind-maps" without
+entering text or other links to each file.
+*** ~org-zk-titlecase~
+:PROPERTIES:
+:ID:       ad77d3a6-d33c-435d-a71b-7ea0e9ca8ae8
+:END:
+When creating a note using the ~org-zk~ commands,
+the title that is entered is automatically converted to title-case.
+
+This only works for English text and not all rules are implemented.
+Multi-word conjunctions are not supported yet.
+** Testing
+:PROPERTIES:
+:ID:       e39756a6-02ef-454c-a0a7-77b495b0d52d
+:END:
+Integration testing is done by providing an input file,
+a set of operations and an file with the expected output.
+
+The output is written to a third =_got= file, which can be diffed with
+the expected output or used to replace the =_expected= file if the
+output generated was valid.
+** ~awk~
+:PROPERTIES:
+:ID:       5eef70f5-d5be-40ce-b851-e4cf818438fb
+:END:
+~awk~ is used to extract timestamps, TODO headlines and flashcard
+spacing information from the collection of files.
+
+This has two important implications:
+
+Each headline needs an ~:ID:~ property,
+this is enforced via a ~before-save~ hook.
+
+IDs should be generated so that a heading can be identified *uniquely*
+identified given the filename and an ID.
+
+Files should be saved as often as possible,
+this is saving buffers when they are switched away from.
+** ~git~
+:PROPERTIES:
+:ID:       c1ee3b46-3862-4a56-a574-0f69dfdfee73
+:END:
+I'm willing to sacrifice a bit of memory and meaningful commit
+messages to make sure no information / history is lost.
+
+Files are committed to version control every hour.
+** Ivy
+:PROPERTIES:
+:ID:       223f4a88-dc18-47a8-842a-40b55270b531
+:END:
+[[https://github.com/abo-abo/swiper]]
+
+** Hydra
+:PROPERTIES:
+:ID:       033a1ef3-5301-4ede-86c0-4e331236f7f6
+:END:
+Used to implement a self-documenting modal editing layer.
 ** Design Goals
+:PROPERTIES:
+:ID:       a4b632d0-8011-4a26-8c56-5e8e9a082526
+:END:
 *** Optimize for performance
+:PROPERTIES:
+:ID:       88664eac-08ad-42de-a52e-46243cd1fc0b
+:END:
 *** Full-text search
+:PROPERTIES:
+:ID:       11b35a45-60a2-4aab-94a7-81d321bbba14
+:END:
 *** Prefer specific custom code to extending / configuring existing code
+:PROPERTIES:
+:ID:       7372c2de-6908-43b5-b720-92fbc68b76c1
+:END:
 *** Prefer small files to large ones split into sections
+:PROPERTIES:
+:ID:       9f414b6a-d2cc-43aa-891b-dfa28c082b23
+:END:
 *** Designed for use with the GTD method
+:PROPERTIES:
+:ID:       8083b921-041b-482f-b5c4-eb3ac7c86987
+:END:
 *** Modular building blocks for flexible systems
+:PROPERTIES:
+:ID:       77a7e15b-6a0b-44be-9070-3944c67b029e
+:END:
 *** Reuse of existing packages
+:PROPERTIES:
+:ID:       87be7df6-d4ff-4507-a10f-8b6955e7c684
+:END:
 - org-ql
 - org-superagenda
 ** Long Term Goals
+:PROPERTIES:
+:ID:       c5301646-855c-48ca-b239-4adb6d9d91a4
+:END:
 *** Back by graph database
+:PROPERTIES:
+:ID:       d38f738c-a1b1-493f-be37-be6f40e2b10e
+:END:
 E.g. [[https://github.com/indradb/indradb][indradb]]
 *** Integrate with [[https://github.com/remacs/remacs][remacs]]
+:PROPERTIES:
+:ID:       1a3f602e-ddea-47a7-93fc-0a892a628b02
+:END:
 For direct bindings from rust to emacs-lisp
 *** Replace Xapian with something written in rust
+:PROPERTIES:
+:ID:       3b9099cb-e4ff-462d-a0dd-a75e002b9828
+:END:
 [[https://github.com/toshi-search/Toshi]]
 ** Performance
+:PROPERTIES:
+:ID:       a1767a17-a3cd-4cf0-814f-fb98d7c5db52
+:END:
 Searching a collection of 915 files (160k words) for =NEXT= tasks in
 active projects takes around 5ms.
 
@@ -30,6 +265,9 @@ Running a full-text search against the same collection of files takes
 
 Benchmark were run on a Thinkpad L470 (SSD, i5-2700U 2.5GHz).
 ** Cache
+:PROPERTIES:
+:ID:       34343c55-dc76-4a5d-800b-521a7fb06a6c
+:END:
 There are a few other packages that provide more advanced / performant
 queries on org-mode files:
 
@@ -48,20 +286,10 @@ files takes around 5s.
 
 Cache entries are updated when a =.org= file is saved, created, moved
 or deleted.
-** Xapian
-While a simple =grep= or =awk= would be sufficient for most searches, this
-package contains a small C++ wrapper for the [[https://xapian.org/][Xapain]] search engine
-library.
-
-This makes it possible to search for files using queries with boolean
-operators and matching of synonyms.
-
-See [[https://xapian.org/docs/queryparser.html][Xapian Docs - Query Parser]] for details on this.
-
-*** TODO Document dependencies needed
-*** TODO Document installation
-*** TODO Document executable paths
 ** Project View
+:PROPERTIES:
+:ID:       f78a7024-9492-4c62-b0b9-6530505fc4b4
+:END:
 Files can be tagged as GTD projects using the =#+GTD_STATE= keyword.
 
 Based on this keyword, a view of all (active) projects can be created
@@ -69,6 +297,9 @@ and it's easy to mark a whole project as =on_hold= or =someday= to
 remove it's tasks from the task view.
 
 *** TODO Project Priorities
+:PROPERTIES:
+:ID:       892fb4fa-00a1-4540-b0a3-7714accffc70
+:END:
 Similar to tasks, files can be assigned different priorities and
 states in order to represent GTD projects.
 
@@ -80,27 +311,73 @@ that is then factored in when sorting =NEXT= tasks by priority.
 - Nested
 - Multiplicative or additive
 ** Task View
+:PROPERTIES:
+:ID:       2a5ae864-8fff-475e-9928-5d9bf763e513
+:END:
 This package implements its own simple version of the =org-agenda=
 task list. based on =tabulated-list-mode=.
 
 I mainly use this to get a view of all =NEXT= tasks, sorted by
 priority, to see what I should work on next.
 ** Calendar View
+:PROPERTIES:
+:ID:       7337a11c-8f38-4891-bd18-25b68bdfe531
+:END:
 Derived from the task view, filtered by tasks due in some span of time.
 *** TODO Allow custom views based on filter rules
+:PROPERTIES:
+:ID:       eec63ece-1393-46ae-b145-93e226df819c
+:END:
 *** TODO Fix handling of links in headings
+:PROPERTIES:
+:ID:       ef8cdfc5-85a9-458e-a1d4-b3f81fb55630
+:END:
 *** WAITING Wrapper around org agenda
 CLOSED: [2019-12-12 Thu 10:23]
+:PROPERTIES:
+:ID:       9ef53e02-e02f-4c61-b993-658c3fd90df8
+:END:
 :LOGBOOK:
 - State "WAITING"    from "NEXT"       [2019-12-12 Thu 10:23]
 :END:
 Set source files on function call,
 use projects containing timestamps for this
 ** Edges and Links Between Files
-Files can contain lists of labeled links (edges) to other files,
-wrapped in a special block.
+:PROPERTIES:
+:ID:       24b89cba-6365-4e31-96be-0d5ff02b754a
+:END:
+There are two ways of linking files together,
+using the *edges* list at the beginning of the file
+or using *inline-links* in the main text.
+
+Both use the default org-mode link syntax.
+
+*Edges* should only be manipulated using the functions in
+~org-zk-links~ to ensure the edge list of the target file is updated
+to.
+
+- ~org-zk-remove-edge~ :: Select & remove an edge from both files
+- ~org-zk-add-edge~ :: Add an edge to both files
+- ~org-zk-add-yank-link~ :: If the kill-ring / clipboard contains a
+  valid URL, insert it in the file's link list.
+
+*** TODO Add block
+:PROPERTIES:
+:ID:       6b520525-cf80-4c1a-a182-4d15186334ce
+:END:
+Edges are wrapped in a =ZK_EDGES= block so that the list can be
+collapsed when using the graph viewer.
+
+No such restriction applies to *inline-links*.
+
 *** TODO Outline Sidebar, Visualization
+:PROPERTIES:
+:ID:       f83337c7-82b3-4939-a3d3-331e17439390
+:END:
 *** TODO Graph Queries / Graph Database
+:PROPERTIES:
+:ID:       823405c8-4f14-43c3-90f5-feba66cdb643
+:END:
 I'd like to ask the system questions like “Which concepts are
 introduced in books by $author”.
 

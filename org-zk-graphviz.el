@@ -13,7 +13,7 @@
 
 (defun org-zk-graph-collect (path depth graph)
   "Collect connected nodes up to DEPTH"
-  (message (format "%s" depth))
+  (message (format "%s @ %s" path depth))
   (let ((cache-file (org-zk-cache-get path)))
     (when cache-file
       (add-node
@@ -23,9 +23,10 @@
         :title (org-zk-cache-get-keyword cache-file "TITLE")
         :id (oref cache-file path)))
       (when (plusp depth)
-        (dolist (link (oref cache-file :links))
-          (let ((link-path (oref link path)))
-            (when link-path
+        (dolist (link (oref cache-file links))
+          (let ((link-path (oref link path))
+                (link-type (oref link type)))
+            (when (and link-path (string-prefix-p "zk_" link-type))
               (add-edge
                graph
                (oref cache-file path)
@@ -37,13 +38,11 @@
 ;; 3. draw edges
 ;; path as id
 (defun org-zk-graph (path)
+  (interactive (list (buffer-file-name)))
   (let* ((cache-file (org-zk-cache-get path))
-         (links (oref cache-file :links))
          (graph (make-instance 'org-zk-graphviz-graph :name "Graph")))
     (org-zk-graph-collect path 2 graph)
-    (save-image graph "/home/leon/graph.png")))
-
-(org-zk-graph "/home/leon/org/inbox.org")
+    (save-image graph "/home/leon/graph.svg")))
 
 (defun org-zk-graphviz-escape (id)
   "Escape filenames for use as graphviz node IDs"
@@ -54,11 +53,10 @@
   (interactive)
   (let* ((path (buffer-file-name))
          (cache-file (org-zk-cache-get path))
-         (links (oref cache-file :links))
          (graph (make-instance 'org-zk-graphviz-graph :name "Graph")))
     (org-zk-graph-collect path 2 graph)
-    (save-image graph "/home/leon/graph.png")
-    (find-file "/home/leon/graph.png")
+    (save-image graph "/home/leon/graph.svg")
+    (find-file "/home/leon/graph.svg")
     (image-mode)))
 
 (defmethod save-image ((graph org-zk-graphviz-graph) outfile)
@@ -71,16 +69,28 @@
           (insert "graph ")
           ;; (insert name " ")
           (insert " {\n")
+          (insert "  ratio=\"fill\";\n")
+          (insert "  size=\"10,10!\";\n")
+          (insert "  resolution=128;\n")
+          (insert "  overlap=false;\n")
+          (insert "  splines=true;\n")
+          (insert "  node[fontsize=20];\n")
+
           (dolist (node nodes)
             (with-slots (id title) node
               (insert (format "%s [ label=\"%s\" ];\n"
                               (org-zk-graphviz-escape id) title))))
           (dolist (edge edges)
-            (insert (format "%s--%s;\n"
-                            (org-zk-graphviz-escape (oref edge from))
-                            (org-zk-graphviz-escape (oref edge to)))))
+            (if (< 0.5 (cl-random 1.0))
+                (insert (format "%s--%s;\n"
+                                (org-zk-graphviz-escape (oref edge from))
+                                (org-zk-graphviz-escape (oref edge to))))
+              (insert (format "%s--%s;\n"
+                                (org-zk-graphviz-escape (oref edge to))
+                                (org-zk-graphviz-escape (oref edge from)))))
+            )
           (insert "}\n")))
-      (shell-command (format "dot %s -Tpng -o %s" infile outfile)))))
+      (shell-command (format "dot %s -Tsvg -Kfdp -o %s" infile outfile)))))
 
 (defmethod add-edge ((graph org-zk-graphviz-graph) from to)
   (with-slots (edges nodes) graph
@@ -90,14 +100,14 @@
   (with-slots (nodes) graph
     (setq nodes (remove-duplicates (cons node nodes)))))
 
-(let ((graph (make-instance 'org-zk-graphviz-graph :name "test")))
-  (add-edge graph 1 4)
-  (add-edge graph 1 2)
-  (add-edge graph 1 7)
-  (add-edge graph 7 8)
-  (add-edge graph 8 9)
-  (add-edge graph 8 1)
-  (save-image graph "~/test.png"))
+;; (let ((graph (make-instance 'org-zk-graphviz-graph :name "test")))
+;;   (add-edge graph 1 4)
+;;   (add-edge graph 1 2)
+;;   (add-edge graph 1 7)
+;;   (add-edge graph 7 8)
+;;   (add-edge graph 8 9)
+;;   (add-edge graph 8 1)
+;;   (save-image graph "~/test.png"))
 
 
 ;; (defun ge-find-node-id-str (id-str)

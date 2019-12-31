@@ -181,15 +181,14 @@
          (buffer-hash (buffer-hash))
          (cat (org-zk-category-for-file path)))
     (if (and cat (not (org-zk-category-ignore-p cat)))
-          (when (or (null entry)
-                    (not (string= buffer-hash (oref entry hash))))
-            (message "processing buffer %s" path)
-            (let ((element (org-element-parse-buffer))
-                  (object (make-org-zk-cache-file path buffer-hash)))
-              (puthash
-               path
-               (org-zk-cache-process-element element object)
-               org-zk-cache--table))))))
+        (when (or (null entry)
+                  (not (string= buffer-hash (oref entry hash))))
+          (let ((element (org-element-parse-buffer))
+                (object (make-org-zk-cache-file path buffer-hash)))
+            (puthash
+             path
+             (org-zk-cache-process-element element object)
+             org-zk-cache--table))))))
 
 ;; Because we would have to enable org-mode anyway,
 ;; using `with-temp-buffer` and `insert-file-contents`

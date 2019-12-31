@@ -1,22 +1,44 @@
 (require 'hydra)
+(require 'org-zk-keywords)
+(require 'org-zk-links)
+
+(defun org-zk--hydra-follow ()
+  (if org-zk-links-follow
+      "[X]"
+      "[ ]"))
 
 (defhydra org-zk-hydra (:hint none)
   "
-^GTD^           ^Add Edge^   ^Create Edge^
-^^^^^----------------------------------------------
-_g_: Set State  _p_: Parent  _P_: Parent
-^ ^             _c_: Child   _C_: Child
-^ ^             _f_: Friend  _F_: Friend
-^ ^             _o_: Other   _O_: Other
+^Actions^        ^Keywords^      ^Edges^        ^Options^
+^^^^^----------------------------------------------------
+_l_: Open Link   _g_: State      _p_: + Parent  _C-f_: %s(org-zk--hydra-follow) follow
+_o_: Open File   _t_: Type       _c_: + Child
+_n_: New File    _s_: Stabil.    _f_: + Friend
+_h_: Jump Hdng   ^ ^             _y_: + Yank URL
+_L_: Link File   ^ ^             _r_: Remove
+_q_: New Query
+_R_: Rename
 "
-  ("g" org-zk-projects-set-gtd-state "Set GTD State" :exit t)
+  ("g" org-zk-set-gtd-state "Set GTD State")
+  ("t" org-zk-set-category "Set Category / Type")
+  ("s" org-zk-set-stability "Stability")
+  ("l" ace-link-org "Open Link")
+  ("L" org-zk-link-file "Link File")
+  ("C-l" org-zk-link-file "Link File")
+  ("h" avy-org-goto-heading-timer "Jump Heading")
+  ("o" org-zk-open-file "Open File")
+  ("n" org-zk-new-file "New File")
+  ("q" org-zk-xapian-query-new-query "Xapian Query")
+  ("R" org-zk-rename "Rename")
+  ;; I'm using C-b as a hotkey for the hydra
+  ;; double-tapping b opens a file
+  ("b" org-zk-open-file "Open File")
+  ("C-b" org-zk-open-file "Open File")
   ("p" org-zk-add-parent "Add parent")
   ("c" org-zk-add-child "Add child")
   ("f" org-zk-add-friend "Add friend")
-  ("o" org-zk-add-edge "Add other edge")
-  ("P" org-zk-create-parent "Create parent")
-  ("C" org-zk-create-child "Create child")
-  ("F" org-zk-create-friend "Create friend")
-  ("O" org-zk-create-edge "Create other edge"))
+  ("r" org-zk-remove-edge "Remove edge")
+  ("y" org-zk-add-yank-link "Add yank link")
+  ("C-f" org-zk-links-toggle-follow "Toggle follow"))
 
 (provide 'org-zk-hydra)

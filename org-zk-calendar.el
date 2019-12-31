@@ -27,6 +27,8 @@ Returns a list of elements (headline . org-zk-cache-timestamp)"
      org-zk-cache--table)
     entries))
 
+(length (org-zk-calendar--time-entries))
+
 (defvar org-zk-calendar-n-days 14)
 
 (defface org-zk-calendar-today-face

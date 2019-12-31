@@ -1,6 +1,7 @@
 (use-package ts)
 
 (require 'org-zk-utils)
+(require 'org-zk-macros)
 (require 'org-zk-categories)
 (require 'org-zk-titlecase)
 (require 'org-zk-cache)
@@ -75,6 +76,24 @@ name-fn to generate a filename."
        (funcall setup-fn title)
        (save-buffer)))))
 
+(defun org-zk-create-file (title category)
+  "Create a new org zettelkasten file given its category and title.
+Returns the name of the new file"
+  (let* ((link-fn (org-zk-category-link-fn category))
+         (name-fn (org-zk-category-name-fn category))
+         (setup-fn (org-zk-category-setup-fn category))
+         (name (funcall name-fn title))
+         (file (expand-file-name
+                (concat name ".org")
+                (org-zk-category-path category))))
+    (if (file-exists-p file)
+        (error "Aborting, file already exists: %s" file))
+    (with-current-buffer (find-file-noselect file)
+      (funcall setup-fn title)
+      (save-buffer)
+      (kill-buffer))
+    file))
+
 (defun org-zk-new-file-and-link ()
   "Create a new org zettelkasten file and insert a link to it at
 point."
@@ -85,22 +104,6 @@ point."
   "Create an org link to the current file and copy it to the kill-ring"
   (interactive)
   (kill-new (org-zk-make-link (buffer-file-name))))
-
-(defun org-zk-edit-keywords ()
-  "Edit the value of the KEYWORDS keyword of the current buffer."
-  (interactive)
-  (let* ((options (org-option-parse))
-         (keywords (assoc "KEYWORDS" options)))
-    (if keywords
-        (org-option-apply
-         (rest keywords)
-         (lambda (kw) (string-trim (read-string "keywords: " kw))))
-      (org-option-add
-       "KEYWORDS"
-       (string-trim (read-string "keywords: "))
-       (if (null options)
-           (point-min)
-         (fourth (first options)))))))
 
 (defvar org-zk-quick-query-history nil)
 
@@ -138,5 +141,60 @@ point."
          (category (org-zk-category-for-file filename)))
     (when (and (equal (file-name-extension filename) "org") category)
       (org-zk-xapian-refresh-file (org-zk-category-name category) filename))))
+
+(defun org-zk-add-ids-to-headlines ()
+  "Make sure all headlines in the current file have an ID property"
+  (interactive)
+  ;; Can't use `org-map-entries' as it opens a prompt when run inside
+  ;; a buffer that hasn't been saved yet (Non-existing file / org
+  ;; agenda)
+  (save-excursion
+    (goto-char (point-max))
+    (while (outline-previous-heading)
+      (org-id-get-create))))
+
+(add-hook 'org-mode-hook
+          (lambda ()
+            (add-hook 'before-save-hook 'org-zk-add-ids-to-headlines nil 'local)))
+
+;; Index current buffer on focus change
+(defadvice switch-to-buffer (before save-buffer-now activate)
+  (when buffer-file-name (org-zk-cache-process-buffer)))
+
+(defadvice other-window (before other-window-now activate)
+  (when buffer-file-name (org-zk-cache-process-buffer)))
+
+(defadvice other-frame (before other-frame-now activate)
+  (when buffer-file-name (org-zk-cache-process-buffer)))
+
+(if (fboundp 'ace-window)
+    (defadvice ace-window (before other-frame-now activate)
+      (when buffer-file-name (org-zk-cache-process-buffer))))
+
+(defun org-zk-file-title (file)
+  "If FILE is in the org cache, return its title,
+if not, return its filename."
+  (let ((cache-file (org-zk-cache-get (expand-file-name file))))
+    (if cache-file
+        (or (org-zk-cache-get-keyword cache-file "TITLE")
+            file)
+      file)))
+
+(defun org-zk-files-linking-here ()
+  "Generate a list of files linking to the current buffer."
+  (let ((path (buffer-file-name)))
+    (org-zk-cache-filter
+     (lambda (source file)
+       (--any (string= (oref it path) path)
+              (oref file links))))))
+
+(defun org-zk-rename (title)
+  "Rename the current zettel, prompting for a new TITLE."
+  (interactive (list (org-zk-read-title)))
+  (org-zk-keywords-set-or-add "TITLE" title)
+  (let ((target (buffer-file-name)))
+   (dolist (file (org-zk-files-linking-here))
+     (org-zk-in-file (car file)
+       (org-zk-update-link target nil title)))))
 
 (provide 'org-zettelkasten)

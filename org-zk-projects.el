@@ -1,23 +1,8 @@
 (require 'org-zk-cache)
 
-(defvar org-zk-projects-gtd-states
-  '("active"
-    "on_hold" ; was active or is ready to go, now is paused
-    "someday" ; incubator / someday / maybe
-    "blocked" ; blocked by some other project
-    "planning" ; planning / brainstorming
-    "cancelled" ; planning / brainstorming
-    "done"))
-
-(defun org-zk-projects-set-gtd-state (state)
-  (interactive
-   (list (ivy-completing-read "State: " org-zk-projects-gtd-states)))
-  (let ((options (org-buffer-options)))
-    (set-org-option options "GTD_STATE" state)))
-
 (defun org-zk-projects-all ()
   (org-zk-cache-file-query
-   `(or ,@(--map `(gtd-state ,it) org-zk-projects-gtd-states))))
+   `(or ,@(--map `(gtd-state ,it) org-zk-gtd-states))))
 
 (define-org-zk-cache-file-query-macro gtd-state (state)
   `(keyword "GTD_STATE" ,state))
@@ -27,17 +12,17 @@
 (defun org-zk-projects-active ()
   (org-zk-cache-file-query '(gtd-state "active")))
 
-(defun org-zk-projects-on-hold ()
-  (org-zk-cache-file-query '(gtd-state "on_hold")))
-
 (defun org-zk-projects-someday ()
   (org-zk-cache-file-query '(gtd-state "someday")))
 
-(defun org-zk-projects-blocked ()
-  (org-zk-cache-file-query '(gtd-state "blocked")))
-
 (defun org-zk-projects-planning ()
   (org-zk-cache-file-query '(gtd-state "planning")))
+
+(defun org-zk-projects-cancelled ()
+  (org-zk-cache-file-query '(gtd-state "cancelled")))
+
+(defun org-zk-projects-done ()
+  (org-zk-cache-file-query '(gtd-state "done")))
 
 (defun org-zk-projects-buffer ()
   (get-buffer-create "*Org Projects*"))
