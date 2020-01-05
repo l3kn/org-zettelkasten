@@ -3,7 +3,8 @@
 :ID:       ae7f78fc-39cc-4eaa-bf0e-3cfa73172dbc
 :END:
 
-[[file:images/interface.png][User Interface]]
+#+CAPTION: User Interface
+[[file:images/interface.png]]
 
 ** Inspiration
 :PROPERTIES:
