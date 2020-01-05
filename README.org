@@ -26,7 +26,8 @@
 :PROPERTIES:
 :ID:       787a0e30-0456-4535-963c-aa5661df11c4
 :END:
-This project should be considered *unstable* at the moment.
+This package should be considered *work in progress* / *unstable*.  I
+use it on a daily basis but the API might change in breaking ways.
 ** Dependencies
 :PROPERTIES:
 :ID:       7a024900-509e-4e01-a2c9-ece290b3e218
