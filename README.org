@@ -2,6 +2,9 @@
 :PROPERTIES:
 :ID:       ae7f78fc-39cc-4eaa-bf0e-3cfa73172dbc
 :END:
+
+[[file:images/interface.png][User Interface]]
+
 ** Inspiration
 :PROPERTIES:
 :ID:       27e5faf6-62c0-46d5-a61c-611ee4062c94
@@ -286,6 +289,13 @@ files takes around 5s.
 
 Cache entries are updated when a =.org= file is saved, created, moved
 or deleted.
+** TODO Graph View
+:PROPERTIES:
+:ID:       f4e7a0c2-8440-460a-96a7-97823cac1d95
+:END:
+- [X] generate graph image from file links
+- [ ] update graph view split on file change
+- [ ] use colors from Emacs colorscheme
 ** Project View
 :PROPERTIES:
 :ID:       f78a7024-9492-4c62-b0b9-6530505fc4b4
