@@ -68,6 +68,11 @@ Returns T if at least one keyword was deleted, NIL if not."
    "cancelled"
    "done"))
 
+;; TODO: Move to main file / config, use shared vars
+(org-zk-def-keyword
+ "GTD_PRIORITY"
+ '("A" "B" "C"))
+
 (org-zk-def-keyword
  "STABILITY"
  '("stable"

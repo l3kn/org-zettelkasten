@@ -47,6 +47,11 @@
   (interactive)
   (ewoc-goto-prev org-zk-dashboard--ewoc 1))
 
+(defun org-zk-dashboard-inbox-count ()
+  "Number of headlines in `org-zk-inbox-file'"
+  (length
+   (oref (org-zk-cache-get org-zk-inbox-file) headlines)))
+
 (defun org-zk-dashboard-open ()
   (interactive)
   (let ((entity (ewoc-locate org-zk-dashboard--ewoc)))
@@ -72,6 +77,13 @@
   "Major mode for showing a org zettelkasten dashboard"
   (hl-line-mode))
 
+(defun org-zk-format-time (time)
+  (format "%2d:%02d"
+          (+
+           (* 24 (plist-get time :days))
+           (plist-get time :hours))
+          (plist-get time :minutes)))
+
 (defun org-zk-dashboard ()
   (interactive)
   (with-current-buffer (org-zk-dashboard-buffer)
@@ -80,28 +92,28 @@
       (let ((ewoc (ewoc-create
                    #'org-zk-dashboard--pp-calendar-entry
                    "  Calendar"
-                   )))
+                   ))
+            (inbox-count (org-zk-dashboard-inbox-count)))
         (setq org-zk-dashboard--ewoc ewoc)
         (dolist
             (entry (org-zk-calendar--repeated-time-entries 1))
           (ewoc-enter-last ewoc entry))
-        (insert "Org Zettelkasten Dashboard")
-        (insert "\n\n")
+        (insert (propertize "Org Zettelkasten Dashboard\n" 'face 'org-level-1))
+        (when (plusp inbox-count)
+            (insert "\n")
+          (insert (propertize (format "  Inbox: %d\n" inbox-count) 'face 'org-level-1)))
+        (insert "\n")
+        (let ((day (org-zk-clocking-total-day))
+              (week (org-zk-clocking-total-week))
+              (month (org-zk-clocking-total-month)))
+          (insert (propertize "  Clocking\n" 'face 'org-level-1))
+          (insert (format "    1 day:  %s\n" (org-zk-format-time day)))
+          (insert (format "    7 day:  %s\n" (org-zk-format-time week)))
+          (insert (format "   30 day:  %s\n" (org-zk-format-time month))))
+        (insert "\n")
         (insert "  [c] Full Calendar\n")
         (insert "  [t] Next Tasks\n")
         (insert "  [j] Projects\n")
-        (insert "\n")
-        (insert "  Clocking, Today:\n")
-        (let ((total (org-zk-clocking-total)))
-          (insert (format "    %2d:%02d\n"
-                   (plist-get total :hours)
-                   (plist-get total :minutes))))
-        (insert "  Clocking, 7 Days:\n")
-        (let ((total (org-zk-clocking-total-week)))
-          (insert (format "    %d:%02d\n"
-                          (+ (* 24 (plist-get total :days))
-                             (plist-get total :hours))
-                   (plist-get total :minutes))))
         (insert "\n")
         (org-zk-dashboard-mode)
         (switch-to-buffer (current-buffer))))))

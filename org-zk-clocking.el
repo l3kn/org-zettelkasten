@@ -20,7 +20,7 @@
      :minute 59
      :second 59)))
 
-(defun org-zk-clocking-total ()
+(defun org-zk-clocking-total-day ()
   (let ((total 0))
     (maphash
      (lambda (key value)
@@ -46,6 +46,21 @@
             (org-zk-cache-clock-duration-in-range
              cl
              (ts-adjust 'day -6 (org-zk-clocking-beginning-of-day))
+             (org-zk-clocking-end-of-day))))))
+     org-zk-cache--table)
+    (ts-human-duration total)))
+
+(defun org-zk-clocking-total-month ()
+  (let ((total 0))
+    (maphash
+     (lambda (key value)
+       (dolist (hl (oref value headlines))
+         (dolist (cl (oref hl clocks))
+           (incf
+            total
+            (org-zk-cache-clock-duration-in-range
+             cl
+             (ts-adjust 'day -29 (org-zk-clocking-beginning-of-day))
              (org-zk-clocking-end-of-day))))))
      org-zk-cache--table)
     (ts-human-duration total)))

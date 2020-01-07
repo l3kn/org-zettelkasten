@@ -36,8 +36,6 @@ Returns a list of elements (headline . org-zk-cache-timestamp)"
   "Face to highlight entries for the current day"
   :group 'org-zk-calendar)
 
-
-
 (defun org-zk-calendar--repeated-time-entries (n-days)
   "Generate a list of all entries with a timestamp,
 including repetitions of timestamps.
@@ -65,7 +63,8 @@ Returns a list of elements (headline ts type)."
   (vector
    (list "Date" 20 t)
    (list "Type" 10 t)
-   (list "Title" 30 t)))
+   (list "File" 20 t)
+   (list "Title" 20 t)))
 
 (defun org-zk-calendar--ts-format (ts)
   (if ts
@@ -82,6 +81,7 @@ Returns a list of elements (headline ts type)."
       (vector
        (org-zk-calendar--ts-format (second entry))
        (symbol-name (third entry))
+       (org-zk-cache-file-title (oref (first entry) parent))
        (oref (first entry) title))))
    entries))
 

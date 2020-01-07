@@ -13,8 +13,15 @@
    (hash :initarg :hash)
    (keywords :initarg :keywords)
    (headlines :initarg :headlines)
+   ;; (priority :initarg :priority)
    (links :initarg :links)
    (category :initarg :category)))
+
+(defun org-zk-cache-file-title (cache-file)
+  (org-zk-cache-get-keyword
+   cache-file
+   "TITLE"
+   (oref cache-file path)))
 
 (defun make-org-zk-cache-file (path hash)
   (make-instance 'org-zk-cache-file
@@ -219,11 +226,11 @@
 (cl-defmethod org-zk-cache-add-link ((cache-file org-zk-cache-file) (link org-zk-cache-link))
   (push link (oref cache-file links)))
 
-(cl-defmethod org-zk-cache-get-keyword ((cache-file org-zk-cache-file) key)
+(cl-defmethod org-zk-cache-get-keyword ((cache-file org-zk-cache-file) key &optional default)
   (alist-get
    key
    (oref cache-file keywords)
-   nil
+   default
    nil
    #'string-equal))
 
@@ -265,6 +272,14 @@
   (interactive)
   (dolist (file (org-zk-files-with-categories))
     (org-zk-cache-process-file (car file))))
+
+;; TODO: Better handling of archive files
+(defun org-zk-archive-files ()
+  (--filter (string-suffix-p "archive" it) (hash-table-keys org-zk-cache--table)))
+
+;; TODO: Better handling of archive files
+(defun org-zk-remove-archive-files ()
+  (--map (remhash it org-zk-cache--table) (org-zk-archive-files)))
 
 (defun org-zk-cache-clear ()
   (interactive)

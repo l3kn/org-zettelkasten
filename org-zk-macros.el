@@ -5,7 +5,8 @@ If not, open PATH in the background, evaluate BODY, then save it."
   `(let ((buffer (find-buffer-visiting ,path)))
      (if buffer
          (with-current-buffer buffer
-           ,@body)
+           ,@body
+           (save-buffer))
        (with-current-buffer (find-file-noselect ,path)
          ,@body
          (save-buffer)

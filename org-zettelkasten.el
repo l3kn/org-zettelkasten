@@ -15,6 +15,8 @@
 (require 'org-zk-dashboard)
 (require 'org-zk-projects)
 
+(defvar org-zk-inbox-file "/home/leon/org/inbox.org")
+
 (defun org-zk-files-with-titles ()
   "Returns an alist of entries (title . (filename . category))"
   (org-zk-cache-mapcan

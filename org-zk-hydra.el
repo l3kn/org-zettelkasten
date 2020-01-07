@@ -12,15 +12,16 @@
 ^Actions^        ^Keywords^      ^Edges^        ^Options^
 ^^^^^----------------------------------------------------
 _l_: Open Link   _g_: State      _p_: + Parent  _C-f_: %s(org-zk--hydra-follow) follow
-_o_: Open File   _t_: Type       _c_: + Child
-_n_: New File    _s_: Stabil.    _f_: + Friend
-_h_: Jump Hdng   ^ ^             _y_: + Yank URL
+_o_: Open File   _,_: Priority   _c_: + Child
+_n_: New File    _t_: Type       _f_: + Friend
+_h_: Jump Hdng   _s_: Stability  _y_: + Yank URL
 _L_: Link File   ^ ^             _r_: Remove
-_q_: New Query
+_x_: Query
 _R_: Rename
 "
   ("g" org-zk-set-gtd-state "Set GTD State")
   ("t" org-zk-set-category "Set Category / Type")
+  ("," org-zk-set-gtd-priority "Priority")
   ("s" org-zk-set-stability "Stability")
   ("l" ace-link-org "Open Link")
   ("L" org-zk-link-file "Link File")
@@ -28,7 +29,7 @@ _R_: Rename
   ("h" avy-org-goto-heading-timer "Jump Heading")
   ("o" org-zk-open-file "Open File")
   ("n" org-zk-new-file "New File")
-  ("q" org-zk-xapian-query-new-query "Xapian Query")
+  ("x" org-zk-xapian-query-new-query "Xapian Query")
   ("R" org-zk-rename "Rename")
   ;; I'm using C-b as a hotkey for the hydra
   ;; double-tapping b opens a file
