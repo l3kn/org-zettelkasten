@@ -298,6 +298,46 @@ or deleted.
 - [X] generate graph image from file links
 - [ ] update graph view split on file change
 - [ ] use colors from Emacs colorscheme
+** TODO Derived Tasks
+:PROPERTIES:
+:ID:       da713583-2835-4799-9f4f-96042bdb4793
+:END:
+Some tasks can be fully derived from the current state of the rest of
+the system.
+
+Examples:
+- Reviewing due flashcards
+- Processing the Inbox
+- Reading mail
+
+This could be implemented by skipping the detour through .org files on
+disk and adding derived tasks to the list when opening the task view.
+
+The downside of this approach is that these tasks would not show up in
+the default org-agenda an keeping track of their time-tracking
+information would require an additional database.
+
+Instead, derived tasks are implemented by checking for some condition
+in regular intervals, then adding a headline to a predefined file.
+
+To avoid cluttering this file, if it already includes a headline with
+the same title that is not marked as "DONE", no new entry is added.
+
+Derived tasks are stored in a hash-table to simplify changing the
+predicate of an existing derived task.
+
+Therefore, each derived task should have *a unique task title*.
+
+Derived tasks can be registered using the ~(def-org-zk-derived-task
+title priority tags predicate)~ macro.
+
+The example below adds a new task "Process Inbox" if there are at
+least five entries in the inbox.
+
+#+begin_src emacs-lisp
+(def-org-zk-derived-task "Process Inbox" "A" '("gtd")
+  (>= (org-zk-inbox-count) 5))
+#+end_src
 ** Project View
 :PROPERTIES:
 :ID:       f78a7024-9492-4c62-b0b9-6530505fc4b4

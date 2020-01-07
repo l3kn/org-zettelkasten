@@ -14,8 +14,15 @@
 (require 'org-zk-calendar)
 (require 'org-zk-dashboard)
 (require 'org-zk-projects)
+(require 'org-zk-derived-tasks)
 
-(defvar org-zk-inbox-file "/home/leon/org/inbox.org")
+(defvar org-zk-inbox-file "/home/leon/org/inbox.org"
+  "File used for the inbox.")
+
+(defun org-zk-inbox-count ()
+  "Number of headlines in `org-zk-inbox-file'"
+  (length
+   (oref (org-zk-cache-get org-zk-inbox-file) headlines)))
 
 (defun org-zk-files-with-titles ()
   "Returns an alist of entries (title . (filename . category))"

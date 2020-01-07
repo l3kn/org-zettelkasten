@@ -47,11 +47,6 @@
   (interactive)
   (ewoc-goto-prev org-zk-dashboard--ewoc 1))
 
-(defun org-zk-dashboard-inbox-count ()
-  "Number of headlines in `org-zk-inbox-file'"
-  (length
-   (oref (org-zk-cache-get org-zk-inbox-file) headlines)))
-
 (defun org-zk-dashboard-open ()
   (interactive)
   (let ((entity (ewoc-locate org-zk-dashboard--ewoc)))
@@ -91,16 +86,15 @@
       (erase-buffer)
       (let ((ewoc (ewoc-create
                    #'org-zk-dashboard--pp-calendar-entry
-                   "  Calendar"
-                   ))
-            (inbox-count (org-zk-dashboard-inbox-count)))
+                   "  Calendar"))
+            (inbox-count (org-zk-inbox-count)))
         (setq org-zk-dashboard--ewoc ewoc)
         (dolist
             (entry (org-zk-calendar--repeated-time-entries 1))
           (ewoc-enter-last ewoc entry))
         (insert (propertize "Org Zettelkasten Dashboard\n" 'face 'org-level-1))
         (when (plusp inbox-count)
-            (insert "\n")
+          (insert "\n")
           (insert (propertize (format "  Inbox: %d\n" inbox-count) 'face 'org-level-1)))
         (insert "\n")
         (let ((day (org-zk-clocking-total-day))

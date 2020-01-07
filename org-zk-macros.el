@@ -4,9 +4,7 @@ If not, open PATH in the background, evaluate BODY, then save it."
   (declare (indent defun))
   `(let ((buffer (find-buffer-visiting ,path)))
      (if buffer
-         (with-current-buffer buffer
-           ,@body
-           (save-buffer))
+         (with-current-buffer buffer ,@body)
        (with-current-buffer (find-file-noselect ,path)
          ,@body
          (save-buffer)
