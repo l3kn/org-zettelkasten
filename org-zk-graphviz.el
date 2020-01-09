@@ -14,13 +14,13 @@
 (defun org-zk-graph-collect (path depth graph)
   "Collect connected nodes up to DEPTH"
   (message (format "%s @ %s" path depth))
-  (let ((cache-file (org-zk-cache-get path)))
+  (let ((cache-file (org-el-cache-get path)))
     (when cache-file
       (add-node
        graph
        (make-instance
         'org-zk-graphviz-node
-        :title (org-zk-cache-get-keyword cache-file "TITLE")
+        :title (org-el-cache-get-keyword cache-file "TITLE")
         :id (oref cache-file path)))
       (when (plusp depth)
         (dolist (link (oref cache-file links))
@@ -39,10 +39,10 @@
 ;; path as id
 (defun org-zk-graph (path)
   (interactive (list (buffer-file-name)))
-  (let* ((cache-file (org-zk-cache-get path))
+  (let* ((cache-file (org-el-cache-get path))
          (graph (make-instance 'org-zk-graphviz-graph :name "Graph")))
-    (org-zk-graph-collect path 2 graph)
-    (save-image graph "/home/leon/graph.svg")))
+    (org-zk-graph-collect path 4 graph)
+    (save-image graph "/home/leon/graph.png")))
 
 (defun org-zk-graphviz-escape (id)
   "Escape filenames for use as graphviz node IDs"
@@ -52,11 +52,11 @@
   "Show graph for current buffer"
   (interactive)
   (let* ((path (buffer-file-name))
-         (cache-file (org-zk-cache-get path))
+         (cache-file (org-el-cache-get path))
          (graph (make-instance 'org-zk-graphviz-graph :name "Graph")))
-    (org-zk-graph-collect path 2 graph)
-    (save-image graph "/home/leon/graph.svg")
-    (find-file "/home/leon/graph.svg")
+    (org-zk-graph-collect path 4 graph)
+    (save-image graph "/home/leon/graph.png")
+    (find-file "/home/leon/graph.png")
     (image-mode)))
 
 (defmethod save-image ((graph org-zk-graphviz-graph) outfile)
@@ -70,7 +70,7 @@
           ;; (insert name " ")
           (insert " {\n")
           (insert "  ratio=\"fill\";\n")
-          (insert "  size=\"10,10!\";\n")
+          (insert "  size=\"10,6!\";\n")
           (insert "  resolution=128;\n")
           (insert "  overlap=false;\n")
           (insert "  splines=true;\n")
@@ -90,11 +90,17 @@
                                 (org-zk-graphviz-escape (oref edge from)))))
             )
           (insert "}\n")))
-      (shell-command (format "dot %s -Tsvg -Kfdp -o %s" infile outfile)))))
+      ;(shell-command (format "dot %s -Tpng -Kfdp -o %s" infile outfile))
+      (shell-command (format "dot %s -Tpng -o %s" infile outfile)))))
 
 (defmethod add-edge ((graph org-zk-graphviz-graph) from to)
   (with-slots (edges nodes) graph
-    (push (make-instance 'org-zk-graphviz-edge :from from :to to) edges)))
+    (let ((edge (if (string< from to)
+                    (make-instance 'org-zk-graphviz-edge :from from :to to)
+                  (make-instance 'org-zk-graphviz-edge :from to :to from))))
+      (setq edges (remove-duplicates (cons edge edges)
+                                     :test 'equalp)))))
+
 
 (defmethod add-node ((graph org-zk-graphviz-graph) node)
   (with-slots (nodes) graph
@@ -251,7 +257,7 @@
 ;;   (if (string-suffix-p ".org" file)
 ;;       (add-node graph file (org-zk-file-title file) depth))
 ;;   (if (< depth max-depth)
-;;       (-when-let (entry (org-zk-cache-get file))
+;;       (-when-let (entry (org-el-cache-get file))
 ;;         (--each
 ;;             (oref entry links)
 ;;           (let ((target (oref it path)))

@@ -31,7 +31,7 @@
   (list
    (list (lambda (e) (org-zk-task-list--sort-todo-keyword (oref e todo-keyword))) #'> #'<)
    (list (lambda (e) (org-zk-task-list--sort-priority (oref e priority))) #'> #'<)
-   (list (lambda (e) (org-zk-cache-get-keyword (oref e parent) "TITLE")) #'string> #'string<)
+   (list (lambda (e) (org-el-cache-get-keyword (oref e parent) "TITLE")) #'string> #'string<)
    (list (lambda (e) (oref e title)) #'string> #'string<)))
 
 ;; Keyword
@@ -60,7 +60,7 @@
       (vector
        (substring-no-properties (oref headline todo-keyword))
        (format "%c" (or (oref headline priority) ?B))
-       (org-zk-cache-get-keyword (oref headline parent) "TITLE")
+       (org-el-cache-get-keyword (oref headline parent) "TITLE")
        (oref headline title)
        (or (oref headline effort) "")
        (mapconcat #'substring-no-properties
@@ -154,7 +154,7 @@
 
 (defun org-zk-next-tasks ()
   (interactive)
-  (org-zk-task-list-show (org-zk-cache-headline-query
+  (org-zk-task-list-show (org-el-cache-headline-query
                           '(keyword "GTD_STATE" "active")
                           '(or (todo "NEXT")))))
 

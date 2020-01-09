@@ -163,4 +163,7 @@ then call ACTION with the category that was selected."
         (funcall action category)
       (org-zk-category-prompt (lambda (cat) (funcall action (cdr cat)))))))
 
+(def-org-el-cache-file-hook category (file _el)
+  `(:category ,(org-zk-category-for-file file)))
+
 (provide 'org-zk-categories)

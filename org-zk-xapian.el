@@ -1,4 +1,4 @@
-(require 'org-zk-cache)
+(require 'org-el-cache)
 
 (defvar org-zk-xapian-db-filename "~/src/org-zettelkasten/xapian/org.db")
 (defvar org-zk-xapian-script-filename "~/src/org-zettelkasten/xapian/org-xapian")
@@ -21,7 +21,7 @@
   "Refresh the xapian index"
   (interactive)
   (with-temp-buffer
-    (dolist (f (org-zk-cache-files))
+    (dolist (f (org-el-cache-files))
       (insert f
               " "
               (org-zk-category-name (org-zk-category-for-file f))
@@ -67,7 +67,7 @@ Returns a list of lists (file category title accuracy)"
 
 (defun org-zk-xapian-delete-file-advice (filename &optional _trash)
   (let ((truename (file-truename filename)))
-    (when (org-zk-cache-get truename)
+    (when (org-el-cache-get truename)
       (message "Removing xapian file %s" truename)
       (org-zk-xapian-delete-file truename))))
 
@@ -102,5 +102,36 @@ Returns a list of lists (file category title accuracy)"
               (org-zk-xapian-delete-file old-truename)))))))
 
 (advice-add 'rename-file :before #'org-zk-xapian-rename-file-advice)
+
+(defvar org-zk-quick-query-history nil)
+
+(defun org-zk--ivy-query (query action)
+  (let ((files (mapcar
+                (lambda (entry)
+                  (cons
+                   (format "%s (%s)"
+                           (third entry)
+                           (second entry))
+                   (first entry)))
+                (org-zk-xapian-query query))))
+    (cond
+     ((> (length files) 1)
+      (ivy-read "Note: "
+                files
+                :action action
+                :require-match t
+                :history org-zk-quick-query-history))
+     ((= (length files) 1) (funcall action (car files)))
+     (t (message "No Results")))))
+
+(defun org-zk-quick-query (query)
+  (interactive "Mquery: ")
+  (org-zk--ivy-query
+   query
+   (lambda (selection)
+     (switch-to-buffer
+      (find-file-noselect (cdr selection)))
+     (org-zk-skip-headers)
+     (search-forward query))))
 
 (provide 'org-zk-xapian)

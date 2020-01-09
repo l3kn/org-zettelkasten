@@ -1,4 +1,4 @@
-(require 'org-zk-cache)
+(require 'org-el-cache)
 
 (defvar org-zk-gtd-states
   '("active"
@@ -11,29 +11,36 @@
 (defvar org-zk-default-file-priorities '("A" "B" "C"))
 (defvar org-zk-default-file-state "none")
 
+(defvar org-zk-gtd-state-property "GTD_STATE")
+
+(defun org-zk-projects-by-state (state)
+  (org-el-cache-filter-files
+   (lambda (_file entry)
+     (equal
+      (org-el-cache-get-keyword entry org-zk-gtd-state-property)
+      state))))
+
 (defun org-zk-projects-all ()
-  (org-zk-cache-file-query
-   `(or ,@(--map `(gtd-state ,it) org-zk-gtd-states))))
-
-(define-org-zk-cache-file-query-macro gtd-state (state)
-  `(keyword "GTD_STATE" ,state))
-
-;; TODO: Generate these using a macro
+  (org-el-cache-filter-files
+   (lambda (_file entry)
+     (member
+      (org-el-cache-get-keyword entry org-zk-gtd-state-property)
+      org-zk-gtd-states))))
 
 (defun org-zk-projects-active ()
-  (org-zk-cache-file-query '(gtd-state "active")))
+  (org-zk-projects-by-state "active"))
 
 (defun org-zk-projects-someday ()
-  (org-zk-cache-file-query '(gtd-state "someday")))
+  (org-zk-projects-by-state "someday"))
 
 (defun org-zk-projects-planning ()
-  (org-zk-cache-file-query '(gtd-state "planning")))
+  (org-zk-projects-by-state "planning"))
 
 (defun org-zk-projects-cancelled ()
-  (org-zk-cache-file-query '(gtd-state "cancelled")))
+  (org-zk-projects-by-state "cancelled"))
 
 (defun org-zk-projects-done ()
-  (org-zk-cache-file-query '(gtd-state "done")))
+  (org-zk-projects-by-state "done"))
 
 (defun org-zk-projects-buffer ()
   (get-buffer-create "*Org Projects*"))
@@ -45,26 +52,31 @@
    (list "NEXT" 4 t)
    (list "TODO" 4 t)))
 
-(defun org-zk-projects-count-next (cached-file)
-  (length (org-zk-cache-file-headline-query cached-file '(todo "NEXT"))))
+(defun org-zk-projects-count-next (entry)
+  (let ((headlines (plist-get entry :headlines)))
+    (count-if
+     (lambda (hl) (string= (plist-get hl :todo-keyword) "NEXT"))
+     headlines)))
 
-(defun org-zk-projects-count-todo (cached-file)
-  (length (org-zk-cache-file-headline-query cached-file '(todo "TODO"))))
+(defun org-zk-projects-count-todo (entry)
+  (let ((headlines (plist-get entry :headlines)))
+    (count-if
+     (lambda (hl) (string= (plist-get hl :todo-keyword) "TODO"))
+     headlines)))
 
 (defun org-zk-projects-tabulate (cached-files)
-  (mapcar
-   (lambda (file)
+  (org-el-cache-mapcan-files
+   (lambda (file entry)
      (list
       (car file)
       (vector
        (concat
-        (org-zk-cache-get-keyword (cdr file) "GTD_STATE" org-zk-default-file-state)
+        (org-el-cache-get-keyword (cdr file) "GTD_STATE" org-zk-default-file-state)
         " "
-        (org-zk-cache-get-keyword (cdr file) "GTD_PRIORITY" org-zk-default-file-priority))
-       (org-zk-cache-file-title (cdr file))
+        (org-el-cache-get-keyword (cdr file) "GTD_PRIORITY" org-zk-default-file-priority))
+       (org-el-cache-file-title (cdr file))
        (number-to-string (org-zk-projects-count-next (cdr file)))
        (number-to-string (org-zk-projects-count-todo (cdr file))))))
-   cached-files))
 
 (define-derived-mode org-zk-projects-mode tabulated-list-mode "Org Projects"
   "Major mode for listing org gtd projects"

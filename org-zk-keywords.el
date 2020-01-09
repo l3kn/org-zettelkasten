@@ -56,10 +56,21 @@ Returns T if at least one keyword was deleted, NIL if not."
     `(defun ,name (value)
        (interactive
         (list (ivy-completing-read
-          (format "%s: " ,key)
-          ,values)))
-       (org-zk-keywords-set-or-add ,key value))))
+               (format "%s: " ,key)
+               ,values)))
+       (org-zk-keywords-set-or-add ,key value)
+       )))
 
+;; TODO: Make more like `org-priority'
+(defun org-zk-file-priority (priority)
+   (interactive
+    (list (ivy-completing-read
+           (format "Priority: ")
+           (loop for i from org-highest-priority to org-lowest-priority
+                 collecting (format "%c" i)))))
+   (org-zk-keywords-set-or-add "GTD_PRIORITY" priority))
+
+;; TODO: Use the same as (org-todo-keywords)
 (org-zk-def-keyword
  "GTD_STATE"
  '("active"

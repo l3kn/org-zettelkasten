@@ -2,32 +2,26 @@
 
 (defun org-zk-calendar--file-time-entries (cache-file)
   (let ((entries nil))
-    (dolist (headline (oref cache-file headlines))
-      (unless (member "fc" (oref headline tags))
-        (let ((deadline (oref headline deadline))
-              (scheduled (oref headline scheduled))
-              (timestamps (oref headline timestamps)))
-          (if deadline
-              (push (cons headline deadline) entries))
-          (if scheduled
-              (push (cons headline scheduled) entries))
-          (setq entries
-                (nconc entries
-                       (mapcar (lambda (timestamp) (cons headline timestamp))
-                               timestamps))))))
+    (dolist (headline (plist-get cache-file :headlines))
+      (let ((deadline (plist-get headline :deadline))
+            (scheduled (plist-get headline :scheduled))
+            (timestamps (plist-get headline :timestamps)))
+        (if deadline
+            (push (cons headline deadline) entries))
+        (if scheduled
+            (push (cons headline scheduled) entries))
+        (setq entries
+              (nconc entries
+                     (mapcar (lambda (timestamp) (cons headline timestamp))
+                             timestamps)))))
     entries))
 
 (defun org-zk-calendar--time-entries ()
   "Generate a list of all entries with a timestamp.
-Returns a list of elements (headline . org-zk-cache-timestamp)"
-  (let ((entries nil))
-    (maphash
-     (lambda (key value)
-       (setq entries (nconc entries (org-zk-calendar--file-time-entries value))))
-     org-zk-cache--table)
-    entries))
-
-(length (org-zk-calendar--time-entries))
+Returns a list of elements (headline . org-el-cache-timestamp)"
+  (org-el-cache-mapcan-files
+   (lambda (key value)
+     (org-zk-calendar--file-time-entries value))))
 
 (defvar org-zk-calendar-n-days 14)
 
@@ -42,7 +36,7 @@ including repetitions of timestamps.
 Returns a list of elements (headline ts type)."
   (mapcan
    (lambda (entry)
-     (if (equal (oref (car entry) style) "habit")
+     (if (equal (plist-get (car entry) :style) "habit")
          (let ((next (org-zk-repeat-repetition-next (cdr entry))))
            (if next
                (list
@@ -81,7 +75,8 @@ Returns a list of elements (headline ts type)."
       (vector
        (org-zk-calendar--ts-format (second entry))
        (symbol-name (third entry))
-       (org-zk-cache-file-title (oref (first entry) parent))
+       ;; TODO: Find title
+       "Title"
        (oref (first entry) title))))
    entries))
 

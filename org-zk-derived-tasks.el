@@ -26,7 +26,7 @@
                (eq (oref it todo-type) 'todo))
           current))))
 
-(cl-defmacro def-org-zk-derived-task (title priority tags &rest body)
+(defmacro def-org-zk-derived-task (title priority tags &rest body)
   "Helper macro for defining derived tasks."
   `(puthash
    ,title
@@ -41,7 +41,7 @@
 (defun org-zk-derived-tasks-new ()
   "Generate a list of new derived tasks not already contained in
   the `org-zk-derived-task-file'."
-  (let ((current (oref (org-zk-cache-get org-zk-derived-task-file) headlines)))
+  (let ((current (oref (org-el-cache-get org-zk-derived-task-file) headlines)))
     (->> (hash-table-values org-zk-derived-tasks)
         (-filter 'org-zk-derived-task-due-p)
         (--filter (org-zk-derived-task-new-p it current)))))
@@ -56,7 +56,8 @@
             (with-slots (title priority tags) task
               (org-insert-heading nil nil t)
               (insert (format "NEXT [#%s] %s" priority title))
-              (org-set-tags tags)))))))
+              (org-set-tags tags))))
+        (save-file))))
 
 (run-at-time nil org-zk-derived-tasks-interval 'org-zk-derived-tasks-update)
 
