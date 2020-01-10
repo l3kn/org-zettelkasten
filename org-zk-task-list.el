@@ -1,5 +1,3 @@
-(require 'org-quickselect-effort)
-
 (setq org-zk-task-list-format
       (vector
        '("Tag" 8 t)
@@ -19,6 +17,7 @@
    ((string= kw "CANCELLED") 1)
    (t 0)))
 
+;; TODO: Use default priority variable
 (defun org-zk-task-list--sort-priority (prio)
   (cond
    ((eql prio ?A) 3)
@@ -29,10 +28,10 @@
 
 (defvar org-zk-task-list--sort-predicates
   (list
-   (list (lambda (e) (org-zk-task-list--sort-todo-keyword (oref e todo-keyword))) #'> #'<)
-   (list (lambda (e) (org-zk-task-list--sort-priority (oref e priority))) #'> #'<)
-   (list (lambda (e) (org-el-cache-get-keyword (oref e parent) "TITLE")) #'string> #'string<)
-   (list (lambda (e) (oref e title)) #'string> #'string<)))
+   (list (lambda (e) (org-zk-task-list--sort-todo-keyword (plist-get e :todo-keyword))) #'> #'<)
+   (list (lambda (e) (org-zk-task-list--sort-priority (plist-get e :priority))) #'> #'<)
+   ;; (list (lambda (e) (org-el-cache-get-keyword (oref e parent) "TITLE")) #'string> #'string<)
+   (list (lambda (e) (plist-get e :title)) #'string> #'string<)))
 
 ;; Keyword
 ;; Prio
@@ -58,13 +57,13 @@
      (list
       headline
       (vector
-       (substring-no-properties (oref headline todo-keyword))
-       (format "%c" (or (oref headline priority) ?B))
-       (org-el-cache-get-keyword (oref headline parent) "TITLE")
-       (oref headline title)
-       (or (oref headline effort) "")
+       (substring-no-properties (plist-get headline :todo-keyword))
+       (format "%c" (or (plist-get headline :priority) ?B))
+       (or (org-el-cache-file-keyword (plist-get headline :file) "TITLE") "")
+       (plist-get headline :title)
+       (or (plist-get headline :effort) "")
        (mapconcat #'substring-no-properties
-                  (oref headline tags)
+                  (plist-get headline :tags)
                   ":"))))
    headlines))
 
@@ -100,37 +99,34 @@
 
 (defun org-zk-task-list-open ()
   (interactive)
-  (let* ((headline (tabulated-list-get-id))
-         (parent (oref headline parent))
-         (path (oref parent path)))
-    (find-file path)
-    (goto-char (oref headline begin))))
+  (let ((headline (tabulated-list-get-id)))
+    (find-file (plist-get headline :file))
+    (goto-char (plist-get headline :begin))))
 
 (defun org-zk-task-list-set-effort ()
   (interactive)
   (let* ((headline (tabulated-list-get-id))
-         (parent (oref headline parent))
-         (path (oref parent path))
-         (cur (oref headline effort))
+         (file (plist-get headline :file))
+         (cur (plist-get headline :effort))
          (allowed (org-property-get-allowed-values nil org-effort-property))
          (effort (org-quickselect-effort-prompt cur allowed)))
     (tabulated-list-set-col "Effort" effort)
-    (with-current-buffer (find-file-noselect path)
-      (goto-char (oref headline begin))
+    ;; TODO: Use in-file macro
+    (with-current-buffer (find-file-noselect file)
+      (goto-char (plist-get headline :begin))
       (org-set-effort effort)
       (save-buffer))
     ;; FIXME, Hacky re-rendering of the updated list
     (let ((p (point)))
-      (org-next-tasks)
+      (org-zk-next-tasks)
       (goto-char p))))
 
 (defun org-zk-task-list-set-todo ()
   (interactive)
   (let* ((headline (tabulated-list-get-id))
-         (parent (oref headline parent))
-         (path (oref parent path)))
-    (with-current-buffer (find-file-noselect path)
-      (goto-char (oref headline begin))
+         (file (plist-get headline :file)))
+    (with-current-buffer (find-file-noselect file)
+      (goto-char (plist-get headline :begin))
       (org-todo)
       (save-buffer))
     ;; FIXME, Hacky re-rendering of the updated list
@@ -141,10 +137,10 @@
 (defun org-zk-task-list-set-priority ()
   (interactive)
   (let* ((headline (tabulated-list-get-id))
-         (parent (oref headline parent))
-         (path (oref parent path)))
+         (parent (plist-get headline :parent))
+         (path (plist-get parent :path)))
     (with-current-buffer (find-file-noselect path)
-      (goto-char (oref headline begin))
+      (goto-char (plist-get headline :begin))
       (org-priority 'set)
       (save-buffer))
     ;; FIXME, Hacky re-rendering of the updated list
@@ -154,8 +150,11 @@
 
 (defun org-zk-next-tasks ()
   (interactive)
-  (org-zk-task-list-show (org-el-cache-headline-query
-                          '(keyword "GTD_STATE" "active")
-                          '(or (todo "NEXT")))))
+  (org-zk-task-list-show
+   (org-el-cache-filter-headlines
+    (lambda (cached-file cached-hl)
+      (and (string= (org-el-cache-entry-keyword cached-file "GTD_STATE") "active")
+           (member (org-el-cache-entry-property cached-hl :todo-keyword)
+                   '("NEXT")))))))
 
 (provide 'org-zk-task-list)
