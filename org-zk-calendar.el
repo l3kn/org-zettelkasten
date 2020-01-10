@@ -1,27 +1,24 @@
 (require 'org-zk-repeat)
 
-(defun org-zk-calendar--file-time-entries (cache-file)
-  (let ((entries nil))
-    (dolist (headline (plist-get cache-file :headlines))
-      (let ((deadline (plist-get headline :deadline))
-            (scheduled (plist-get headline :scheduled))
-            (timestamps (plist-get headline :timestamps)))
-        (if deadline
-            (push (cons headline deadline) entries))
-        (if scheduled
-            (push (cons headline scheduled) entries))
-        (setq entries
-              (nconc entries
-                     (mapcar (lambda (timestamp) (cons headline timestamp))
-                             timestamps)))))
-    entries))
-
+;; TODO: Implement as headline hook
 (defun org-zk-calendar--time-entries ()
-  "Generate a list of all entries with a timestamp.
-Returns a list of elements (headline . org-el-cache-timestamp)"
-  (org-el-cache-mapcan-files
-   (lambda (key value)
-     (org-zk-calendar--file-time-entries value))))
+  (org-el-cache-mapcan-headlines
+   (lambda (_cached-file headline)
+     (let ((entries nil))
+       (if-let ((deadline (plist-get headline :deadline)))
+           (push (plist-put (org-zk-time-from-element deadline 'deadline)
+                            :headline headline)
+                 entries))
+       (if-let ((scheduled (plist-get headline :scheduled)))
+           (push (plist-put (org-zk-time-from-element scheduled 'scheduled)
+                            :headline headline)
+                 entries))
+       (setq entries
+             (nconc entries
+                    (mapcar (lambda (timestamp) (plist-put (org-zk-time-from-element timestamp 'timestamp)
+                                                      :headline headline))
+                            (plist-get headline :timestamps))))
+       entries))))
 
 (defvar org-zk-calendar-n-days 14)
 
@@ -36,17 +33,13 @@ including repetitions of timestamps.
 Returns a list of elements (headline ts type)."
   (mapcan
    (lambda (entry)
-     (if (equal (plist-get (car entry) :style) "habit")
-         (let ((next (org-zk-repeat-repetition-next (cdr entry))))
-           (if next
-               (list
-                (list (car entry) next (oref (cdr entry) type)))
-             nil))
+     (if (equal (plist-get (plist-get entry :headline) :style) "habit")
+         (if-let ((next (org-zk-repeat-repetition-next entry)))
+             (list (plist-put entry :repetition next)))
        (mapcar
-        (lambda (repetition)
-          (list (car entry) repetition (oref (cdr entry) type)))
+        (lambda (repetition) (plist-put entry :repetition repetition))
         (org-zk-repeat-repetitions-next-n-days
-         (cdr entry)
+         entry
          n-days))))
    (org-zk-calendar--time-entries)))
 
@@ -70,23 +63,24 @@ Returns a list of elements (headline ts type)."
 (defun org-zk-calendar-tabulate (entries)
   (mapcar
    (lambda (entry)
-     (list
-      entry
-      (vector
-       (org-zk-calendar--ts-format (second entry))
-       (symbol-name (third entry))
-       ;; TODO: Find title
-       "Title"
-       (oref (first entry) title))))
+     (let* ((headline (plist-get entry :headline))
+            (file (plist-get headline :file)))
+         (list
+          entry
+          (vector
+           (org-zk-calendar--ts-format (plist-get entry :repetition))
+           (symbol-name (plist-get entry :type))
+           ;; TODO: Find title
+           (or (org-el-cache-file-keyword file "TITLE")
+               file)
+           (plist-get headline :title)))))
    entries))
 
 (defun org-zk-calendar-open ()
   (interactive)
-  (let* ((headline (first (tabulated-list-get-id)))
-         (parent (oref headline parent))
-         (path (oref parent path)))
-    (find-file path)
-    (goto-char (oref headline begin))))
+  (let* ((headline (plist-get (tabulated-list-get-id) :headline)))
+    (find-file (plist-get headline :file))
+    (goto-char (plist-get headline :begin))))
 
 (setq org-zk-calendar-mode-map
       (let ((map (make-sparse-keymap)))
@@ -98,6 +92,7 @@ Returns a list of elements (headline ts type)."
   "Major mode for listing org calendar entries"
   (hl-line-mode))
 
+(org-zk-calendar-tabulate
 (defun org-zk-calendar ()
   (interactive)
   (let ((entries (org-zk-calendar--repeated-time-entries org-zk-calendar-n-days)))
@@ -118,8 +113,8 @@ Returns a list of elements (headline ts type)."
      (eq (ts-month ts) (ts-month now))
      (eq (ts-day ts) (ts-day now)))))
 
-(defun org-zk-calendar--face (id)
-  (let ((ts (second id)))
+(defun org-zk-calendar--face (entry)
+  (let ((ts (plist-get entry :repetition)))
     (if (org-zk-calendar--today-p ts) 'bold 'default)))
 
 (defun org-zk-calendar-print-entry (id cols)

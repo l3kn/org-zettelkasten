@@ -84,14 +84,7 @@
   (with-current-buffer (org-zk-dashboard-buffer)
     (let ((inhibit-read-only t))
       (erase-buffer)
-      (let ((ewoc (ewoc-create
-                   #'org-zk-dashboard--pp-calendar-entry
-                   "  Calendar"))
-            (inbox-count (org-zk-inbox-count)))
-        (setq org-zk-dashboard--ewoc ewoc)
-        (dolist
-            (entry (org-zk-calendar--repeated-time-entries 1))
-          (ewoc-enter-last ewoc entry))
+      (let ((inbox-count (org-zk-inbox-count)))
         (insert (propertize "Org Zettelkasten Dashboard\n" 'face 'org-level-1))
         (when (plusp inbox-count)
           (insert "\n")

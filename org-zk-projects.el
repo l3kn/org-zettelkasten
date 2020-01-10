@@ -1,30 +1,17 @@
 (require 'org-el-cache)
 
-(defvar org-zk-gtd-states
-  '("active"
-    "someday"
-    "planning"
-    "cancelled"
-    "done"))
-
-(defvar org-zk-default-file-priority "B")
-(defvar org-zk-default-file-priorities '("A" "B" "C"))
-(defvar org-zk-default-file-state "none")
-
-(defvar org-zk-gtd-state-property "GTD_STATE")
-
 (defun org-zk-projects-by-state (state)
   (org-el-cache-filter-files
-   (lambda (_file entry)
+   (lambda (entry)
      (equal
-      (org-el-cache-get-keyword entry org-zk-gtd-state-property)
+      (org-el-cache-entry-keyword entry org-zk-gtd-state-keyword)
       state))))
 
 (defun org-zk-projects-all ()
   (org-el-cache-filter-files
-   (lambda (_file entry)
+   (lambda (entry)
      (member
-      (org-el-cache-get-keyword entry org-zk-gtd-state-property)
+      (org-el-cache-entry-keyword entry org-zk-gtd-state-keyword)
       org-zk-gtd-states))))
 
 (defun org-zk-projects-active ()
@@ -52,31 +39,26 @@
    (list "NEXT" 4 t)
    (list "TODO" 4 t)))
 
-(defun org-zk-projects-count-next (entry)
+(defun org-zk-projects-count-todo-keyword (entry keyword)
   (let ((headlines (plist-get entry :headlines)))
     (count-if
-     (lambda (hl) (string= (plist-get hl :todo-keyword) "NEXT"))
-     headlines)))
-
-(defun org-zk-projects-count-todo (entry)
-  (let ((headlines (plist-get entry :headlines)))
-    (count-if
-     (lambda (hl) (string= (plist-get hl :todo-keyword) "TODO"))
+     (lambda (hl) (string= (plist-get hl :todo-keyword) keyword))
      headlines)))
 
 (defun org-zk-projects-tabulate (cached-files)
-  (org-el-cache-mapcan-files
-   (lambda (file entry)
+  (mapcar
+   (lambda (entry)
      (list
-      (car file)
+      entry
       (vector
        (concat
-        (org-el-cache-get-keyword (cdr file) "GTD_STATE" org-zk-default-file-state)
+        (org-el-cache-entry-keyword entry "GTD_STATE" org-zk-default-file-state)
         " "
-        (org-el-cache-get-keyword (cdr file) "GTD_PRIORITY" org-zk-default-file-priority))
-       (org-el-cache-file-title (cdr file))
-       (number-to-string (org-zk-projects-count-next (cdr file)))
-       (number-to-string (org-zk-projects-count-todo (cdr file))))))
+        (org-el-cache-entry-keyword entry "GTD_PRIORITY" org-zk-default-file-priority))
+       (org-el-cache-entry-keyword entry "TITLE" (plist-get entry :file))
+       (number-to-string (org-zk-projects-count-todo-keyword entry "NEXT"))
+       (number-to-string (org-zk-projects-count-todo-keyword entry "TODO")))))
+   cached-files))
 
 (define-derived-mode org-zk-projects-mode tabulated-list-mode "Org Projects"
   "Major mode for listing org gtd projects"
@@ -86,7 +68,7 @@
   (= 0 (org-zk-projects-count-next cached-file)))
 
 (defun org-zk-projects-filter-blocked (projects)
-  (--filter (not (org-zk-projects-blocked-p (cdr it)))
+  (--filter (not (org-zk-projects-blocked-p it))
             projects))
 
 (defun org-zk-projects ()
@@ -104,7 +86,7 @@
 (defun org-zk-projects-open ()
   "Open the file for the project under point"
   (interactive)
-  (find-file (tabulated-list-get-id)))
+  (find-file (plist-get (tabulated-list-get-id) :file)))
 
 (defun org-zk-projects-set-gtd-priority ()
   "Open the file for the project under point"

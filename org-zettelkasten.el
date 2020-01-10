@@ -2,7 +2,6 @@
 
 (require 'org-el-cache)
 
-
 (require 'org-zk-utils)
 (require 'org-zk-macros)
 (require 'org-zk-categories)
@@ -11,12 +10,25 @@
 ;; (require 'org-zk-xapian-query)
 (require 'org-zk-links)
 (require 'org-zk-hydra)
-;; (require 'org-zk-repeat)
-;; (require 'org-zk-task-list)
-;; (require 'org-zk-calendar)
-;; (require 'org-zk-dashboard)
-;; (require 'org-zk-projects)
+(require 'org-zk-repeat)
+(require 'org-zk-task-list)
+(require 'org-zk-calendar)
+(require 'org-zk-dashboard)
+(require 'org-zk-projects)
 (require 'org-zk-derived-tasks)
+
+(defvar org-zk-gtd-states
+  '("active"
+    "someday"
+    "planning"
+    "cancelled"
+    "done"))
+
+(defvar org-zk-default-file-priority "B")
+(defvar org-zk-default-file-priorities '("A" "B" "C"))
+(defvar org-zk-default-file-state "none")
+
+(defvar org-zk-gtd-state-keyword "GTD_STATE")
 
 (defun org-zk-files-with-titles ()
   "Returns an alist of entries (title . filename)"

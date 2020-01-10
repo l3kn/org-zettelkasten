@@ -76,9 +76,9 @@
   "Generate a list of all repetitions of TS between FROM and TO.
 Hourly repetitions are *not* supported.  When using this, no
 assumptions should be made about the order of the results"
-  (let* ((ts (oref timestamp ts))
-         (unit (oref timestamp unit))
-         (value (oref timestamp value))
+  (let* ((ts (plist-get timestamp :ts))
+         (unit (plist-get timestamp :unit))
+         (value (plist-get timestamp :value))
          (ts-next (org-zk-repeat-next from ts unit value))
          (results (list)))
     (while (ts<= ts-next to)
