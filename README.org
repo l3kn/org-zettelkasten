@@ -1,107 +1,14 @@
 * Org Zettelkasten
+This package should be considered *work in progress*.  I use it on a
+daily basis but the API regularly changes in breaking ways.
+
+I still need to write proper setup instructions.
+For now, feel free to look around for pieces of code that might be
+useful to you.
+
 #+CAPTION: User Interface
 [[file:images/interface.png]]
 
-** Selecting Files
-#+begin_src emacs-lisp
-(defun org-zk-files-with-titles ()
-  "Returns an alist of entries (title . filename)"
-  (org-el-cache-mapcan-files
-   (lambda (file cache-entry)
-     (let ((category (plist-get cache-entry :category))
-           (title (or (org-el-cache-get-keyword file "TITLE") file)))
-       (if category
-           (list
-            (cons
-             (format "%s (%s)" title (org-zk-category-name category))
-             file)))))))
-
-(defvar org-zk-ivy-histoy nil)
-
-(defun org-zk-select-file (action)
-  (ivy-read
-   "File: "
-   (org-zk-files-with-titles)
-   :history 'org-zk-ivy-history
-   :action action))
-#+end_src
-
-#+RESULTS:
-: org-zk-select-file
-** Opening Files
-#+begin_src emacs-lisp
-(defun org-zk-open-file ()
-  "Select a file, then open it"
-  (interactive)
-  (org-zk-select-file (lambda (selection) (find-file (cdr selection)))))
-#+end_src
-** Linking Files
-#+begin_src emacs-lisp
-  (defun org-zk-link-file ()
-    "Select a file, then insert an org-mode link to it"
-    (interactive)
-    (org-zk-select-file
-     (lambda (selection)
-       (insert (org-zk-make-link
-                (cdr selection)
-                (org-zk-file-title (cdr selection)))))))
-
-  (defun org-zk-copy-link-to-file ()
-    "Create an org link to the current file and copy it to the kill-ring"
-    (interactive)
-    (kill-new (org-zk-make-link (buffer-file-name))))
-#+end_src
-** Creating Files
-#+begin_src emacs-lisp
-(defun org-zk-new-file (&optional insert-link)
-  "Create a new org zettelkasten file.
-Prompts for a title, and a project, then uses the projects
-name-fn to generate a filename."
-  (interactive)
-  (org-zk-category-prompt
-   (lambda (category)
-     (let* ((category (cdr category))
-            (title (org-zk-read-title))
-            (link-fn (org-zk-category-link-fn category))
-            (name-fn (org-zk-category-name-fn category))
-            (setup-fn (org-zk-category-setup-fn category))
-            (name (funcall name-fn title))
-            (file (expand-file-name
-                   (concat name ".org")
-                   (org-zk-category-path category))))
-       (if (file-exists-p file)
-           (error "Aborting, file already exists: %s" file))
-       (when insert-link
-         (insert (funcall link-fn file title))
-         (save-buffer))
-       (find-file file)
-       (funcall setup-fn title)
-       (save-buffer)))))
-
-(defun org-zk-create-file (title category)
-  "Create a new org zettelkasten file given its category and title.
-Returns the name of the new file"
-  (let* ((link-fn (org-zk-category-link-fn category))
-         (name-fn (org-zk-category-name-fn category))
-         (setup-fn (org-zk-category-setup-fn category))
-         (name (funcall name-fn title))
-         (file (expand-file-name
-                (concat name ".org")
-                (org-zk-category-path category))))
-    (if (file-exists-p file)
-        (error "Aborting, file already exists: %s" file))
-    (with-current-buffer (find-file-noselect file)
-      (funcall setup-fn title)
-      (save-buffer)
-      (kill-buffer))
-    file))
-
-(defun org-zk-new-file-and-link ()
-  "Create a new org zettelkasten file and insert a link to it at
-point."
-  (interactive)
-  (org-zk-new-file t))
-#+end_src
 ** ID on every heading                                            :inactive:
 #+begin_src
 (defun org-zk-add-ids-to-headlines ()
