@@ -9,27 +9,42 @@ useful to you.
 #+CAPTION: User Interface
 [[file:images/interface.png]]
 
-** ID on every heading                                            :inactive:
-#+begin_src
-(defun org-zk-add-ids-to-headlines ()
-  "Make sure all headlines in the current file have an ID property"
-  (interactive)
-  ;; Can't use `org-map-entries' as it opens a prompt when run inside
-  ;; a buffer that hasn't been saved yet (Non-existing file / org
-  ;; agenda)
-  (save-excursion
-    (goto-char (point-max))
-    (while (outline-previous-heading)
-      (org-id-get-create))))
+** Motivation
+When managing large collections of org-files (> 1000), many of the
+default functions / modes (i.e. org-agenda) become very slow.
 
-(add-hook 'org-mode-hook
-          (lambda ()
-            (add-hook 'before-save-hook 'org-zk-add-ids-to-headlines nil 'local)))
-#+end_src
+This package is an attempt at alleviating this problem by introducing
+a caching layer that is persisted to disk, and a set of command for
+interacting with / viewing this data.
+
+(Planned) features include:
+
+- A command for finding files by their titles
+- Commands for renaming files updating all links to them
+- Commands for extracting a headline into a separate file
+  (or doing the inverse)
+- A hydra with a bunch of useful hotkeys
+- A project view for listing files marked as GTD projects
+- A graph view (prototype stage)
+- A sidebar showing backlinks for the current file (prototype stage)
+- A TODO list that can show tasks collected from hundreds of files
+  (not working at the moment)
+- Full-text search
+  (not working at the moment)
 ** Inspiration
 *** David Allen - Getting Things Done                                :book:
 *** Lion Kimbro - [[https://users.speakeasy.net/~lion/nb/html/][How to Make a Complete Map of Every Thought You Think]] :website:
 *** Niklas Luhman - Zettelkasten
+** Similar Projects
+- [[https://jblevins.org/projects/deft/][deft]], Emacs mode for browsing, filtering & editing directories of files
+- [[https://github.com/EFLS/zetteldeft][EFLS/zetteldeft]], Zettelkasten system for deft
+- [[https://github.com/jethrokuan/org-roam/][jethrokuan/org-roam]], Extensions to deft, graph view
+- [[https://github.com/alphapapa/org-graph-view][alphapapa/org-graph-view]], Link-graph view for org-mode
+- [[https://github.com/alphapapa/org-ql][alphapapa/org-ql]], Query-language & views for org-mode
+
+If you are not working with > 1000 org-mode files or if you have no
+yet run into any performance problems, one (or a combination of
+multiple) of the packages listed above might fit your needs better.
 ** Stability
 This package should be considered *work in progress* / *unstable*.  I
 use it on a daily basis but the API might change in breaking ways.
@@ -52,6 +67,39 @@ See [[https://xapian.org/docs/queryparser.html][Xapian Docs - Query Parser]] for
 *** TODO Document dependencies needed
 *** TODO Document installation
 *** TODO Document executable paths
+** Categories
+~org-zk-categories~ is used to customize org-zk settings per directory.
+Entries should be of the form ~(:path ... :other-settings ...)~.
+
+This is most useful for configuring the ~:setup-fn~ for a file.
+
+Due to the way this list is searched when determining the category of
+a file, sub-directories should be listed *before* their parent
+directory.
+
+*** Example
+Here is the configuration I'm using for my personal setup:
+
+#+begin_src emacs-lisp
+  (defun org-zk-website-setup-fn (title)
+    (insert "#+SETUPFILE: ~/org/website/setup.org\n")
+    (org-zk-default-setup-fn title))
+
+  (setq org-zk-categories
+        '((:path "~/org/flashcards/" :name "fc")
+          (:path "~/org/sandbox/" :name "sandbox")
+          (:path "~/org/archives/" :name "archives" :ignore t)
+          (:path "~/org/website/pages/" :name "pages" :setup-fn org-zk-website-setup-fn)
+          (:path "~/org/website/" :name "website" :setup-fn org-zk-website-setup-fn)
+          (:path "~/org/deft/" :name "zk")
+          (:path "~/org/paper/" :name "paper")
+          (:path "~/org/" :name "main")))
+#+end_src
+*** Alternative Implementations
+This could be implemented using [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Directory-Variables.html][Directory Variables]],
+however in that case, there is no one way to see the configuration for
+all categories and each variable that is set has to be declared
+non-risky.
 ** Components
 *** ~org-zk-keywords~
 File-level attributes are stored as =#+KEY: value= org mode keywords.
