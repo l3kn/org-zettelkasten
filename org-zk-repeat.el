@@ -1,6 +1,3 @@
-(require 'ts)
-(require 'org-zk-clocking)
-
 (defun org-zk-repeat--ts-to-absolute (ts)
   (calendar-absolute-from-gregorian
    (list
@@ -72,7 +69,7 @@
                ts-next
                (ts-adjust 'year 1 ts-next))))))))
 
-(defmethod org-zk-repeat-repetitions-in-range ((timestamp org-zk-time) from to)
+(defun org-zk-repeat-repetitions-in-range (timestamp from to)
   "Generate a list of all repetitions of TS between FROM and TO.
 Hourly repetitions are *not* supported.  When using this, no
 assumptions should be made about the order of the results"
@@ -88,33 +85,28 @@ assumptions should be made about the order of the results"
        (org-zk-repeat-next (ts-adjust 'day 1 ts-next) ts unit value)))
     results))
 
-(defmethod org-zk-repeat-repetitions-in-range ((timestamp org-zk-time) from to)
-  (list timestamp))
-
-  (defun org-zk-repeat-repetitions-next-n-days (timestamp n-days)
-    "Generate a list of all repetitions of TIMESTAMP in the next N-DAYS days.
+(defun org-zk-repeat-repetitions-next-n-days (timestamp n-days)
+  "Generate a list of all repetitions of TIMESTAMP in the next N-DAYS days.
 Hourly repetitions are *not* supported.  When using this, no
 assumptions should be made about the order of the results.
 Returns a list of *ts* timestamps, not org-zk-clocking-timestamps"
-    (let* ((from (org-zk-repeat--ts-now))
-           (to (ts-adjust 'day n-days 'minute -1 from)))
-      (if (plist-get timestamp :unit)
-          (org-zk-repeat-repetitions-in-range timestamp from to)
-        (let ((ts (plist-get timestamp :ts)))
-          (if (and (ts>= ts from) (ts<= ts to))
-              (list ts)
-            (list))))))
+  (let* ((from (org-zk-repeat--ts-now))
+         (to (ts-adjust 'day n-days 'minute -1 from)))
+    (if (plist-get timestamp :unit)
+        (org-zk-repeat-repetitions-in-range timestamp from to)
+      (let ((ts (plist-get timestamp :ts)))
+        (if (and (ts>= ts from) (ts<= ts to))
+            (list ts)
+          (list))))))
 
 (defun org-zk-repeat-repetition-next (timestamp)
   (let ((now (org-zk-repeat--ts-now))
         (ts (plist-get timestamp :ts)))
     (if (plist-get timestamp :unit)
-        (org-zk-repeat-next now
-         ts
+        (org-zk-repeat-next
+         now ts
          (plist-get timestamp :unit)
          (plist-get timestamp :value))
-      (if (ts>= ts now)
-          ts
-        nil))))
+      (if (ts>= ts now) ts nil))))
 
 (provide 'org-zk-repeat)

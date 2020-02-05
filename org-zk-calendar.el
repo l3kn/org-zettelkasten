@@ -6,17 +6,15 @@
    (lambda (_cached-file headline)
      (let ((entries nil))
        (if-let ((deadline (plist-get headline :deadline)))
-           (push (plist-put (org-zk-time-from-element deadline 'deadline)
-                            :headline headline)
+           (push (plist-put deadline :headline headline)
                  entries))
        (if-let ((scheduled (plist-get headline :scheduled)))
-           (push (plist-put (org-zk-time-from-element scheduled 'scheduled)
-                            :headline headline)
+           (push (plist-put scheduled :headline headline)
                  entries))
        (setq entries
              (nconc entries
-                    (mapcar (lambda (timestamp) (plist-put (org-zk-time-from-element timestamp 'timestamp)
-                                                      :headline headline))
+                    (mapcar (lambda (timestamp)
+                              (plist-put timestamp :headline headline))
                             (plist-get headline :timestamps))))
        entries))))
 
@@ -47,11 +45,11 @@ Returns a list of elements (headline ts type)."
   (get-buffer-create "*Org Zettelkasten Calendar*"))
 
 (setq org-zk-calendar-format
-  (vector
-   (list "Date" 20 t)
-   (list "Type" 10 t)
-   (list "File" 20 t)
-   (list "Title" 20 t)))
+      (vector
+       (list "Date" 20 t)
+       (list "Type" 10 t)
+       (list "File" 20 t)
+       (list "Title" 20 t)))
 
 (defun org-zk-calendar--ts-format (ts)
   (if ts
@@ -65,15 +63,15 @@ Returns a list of elements (headline ts type)."
    (lambda (entry)
      (let* ((headline (plist-get entry :headline))
             (file (plist-get headline :file)))
-         (list
-          entry
-          (vector
-           (org-zk-calendar--ts-format (plist-get entry :repetition))
-           (symbol-name (plist-get entry :type))
-           ;; TODO: Find title
-           (or (org-el-cache-file-keyword file "TITLE")
-               file)
-           (plist-get headline :title)))))
+       (list
+        entry
+        (vector
+         (org-zk-calendar--ts-format (plist-get entry :repetition))
+         (symbol-name (plist-get entry :type))
+         ;; TODO: Find title
+         (or (org-el-cache-file-keyword file "TITLE")
+             file)
+         (plist-get headline :title)))))
    entries))
 
 (defun org-zk-calendar-open ()
@@ -92,7 +90,6 @@ Returns a list of elements (headline ts type)."
   "Major mode for listing org calendar entries"
   (hl-line-mode))
 
-(org-zk-calendar-tabulate
 (defun org-zk-calendar ()
   (interactive)
   (let ((entries (org-zk-calendar--repeated-time-entries org-zk-calendar-n-days)))
@@ -123,11 +120,11 @@ This is the default `tabulated-list-printer' function.  ID is a
 Lisp object identifying the entry to print, and COLS is a vector
 of column descriptors."
   (let ((beg   (point))
-	      (x     (max tabulated-list-padding 0))
-	      (ncols (length tabulated-list-format))
-	      (inhibit-read-only t))
+        (x     (max tabulated-list-padding 0))
+        (ncols (length tabulated-list-format))
+        (inhibit-read-only t))
     (if (> tabulated-list-padding 0)
-	      (insert (make-string x ?\s)))
+        (insert (make-string x ?\s)))
     (let ((tabulated-list--near-rows ; Bind it if not bound yet (Bug#25506).
            (or (bound-and-true-p tabulated-list--near-rows)
                (list (or (tabulated-list-get-entry (point-at-bol 0))

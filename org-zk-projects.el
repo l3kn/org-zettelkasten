@@ -10,24 +10,8 @@
 (defun org-zk-projects-all ()
   (org-el-cache-filter-files
    (lambda (entry)
-     (member
-      (org-el-cache-entry-keyword entry org-zk-gtd-state-keyword)
-      org-zk-gtd-states))))
-
-(defun org-zk-projects-active ()
-  (org-zk-projects-by-state "active"))
-
-(defun org-zk-projects-someday ()
-  (org-zk-projects-by-state "someday"))
-
-(defun org-zk-projects-planning ()
-  (org-zk-projects-by-state "planning"))
-
-(defun org-zk-projects-cancelled ()
-  (org-zk-projects-by-state "cancelled"))
-
-(defun org-zk-projects-done ()
-  (org-zk-projects-by-state "done"))
+     (let ((state (org-el-cache-entry-keyword entry "GTD_STATE")))
+       (or state (org-zk-ql-has-todos entry))))))
 
 (defun org-zk-projects-buffer ()
   (get-buffer-create "*Org Projects*"))
@@ -64,8 +48,8 @@
   "Major mode for listing org gtd projects"
   (hl-line-mode))
 
-(defun org-zk-projects-blocked-p (cached-file)
-  (= 0 (org-zk-projects-count-next cached-file)))
+(defun org-zk-projects-blocked-p (entry)
+  (zerop (org-zk-projects-count-todo-keyword entry "NEXT")))
 
 (defun org-zk-projects-filter-blocked (projects)
   (--filter (not (org-zk-projects-blocked-p it))

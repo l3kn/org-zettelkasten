@@ -71,9 +71,7 @@
   (get-buffer-create "Org Tasks"))
 
 (defun org-zk-task-list-show (headlines)
-  (message "Headlines %d" (length headlines))
   (setq headlines (org-zk-task-list--sort headlines))
-  (message "Headlines 2 %d" (length headlines))
   (with-current-buffer (org-zk-task-list-buffer)
     (org-zk-task-list-mode)
     (setq tabulated-list-format org-zk-task-list-format)
@@ -112,9 +110,9 @@
          (effort (org-quickselect-effort-prompt cur allowed)))
     (tabulated-list-set-col "Effort" effort)
     ;; TODO: Use in-file macro
-    (with-current-buffer (find-file-noselect file)
+    (org-zk-in-file file
       (goto-char (plist-get headline :begin))
-      (org-set-effort effort)
+      (org-set-effort nil effort)
       (save-buffer))
     ;; FIXME, Hacky re-rendering of the updated list
     (let ((p (point)))
@@ -131,30 +129,71 @@
       (save-buffer))
     ;; FIXME, Hacky re-rendering of the updated list
     (let ((p (point)))
-      (org-next-tasks)
+      (org-zk-next-tasks)
       (goto-char p))))
 
 (defun org-zk-task-list-set-priority ()
   (interactive)
   (let* ((headline (tabulated-list-get-id))
-         (parent (plist-get headline :parent))
-         (path (plist-get parent :path)))
-    (with-current-buffer (find-file-noselect path)
+         (file (plist-get headline :file)))
+    (with-current-buffer (find-file-noselect file)
       (goto-char (plist-get headline :begin))
       (org-priority 'set)
       (save-buffer))
     ;; FIXME, Hacky re-rendering of the updated list
     (let ((p (point)))
-      (org-next-tasks)
+      (org-zk-next-tasks)
       (goto-char p))))
+
+(def-org-el-cache-file-hook tags (_file el)
+  (let ((first (car (org-element-contents el))))
+    (if (eq (org-element-type first) 'section)
+        `(:tags
+          ,(mapcan #'identity
+                   (org-element-map first 'keyword
+                     (lambda (e) (if (string= (org-element-property :key e) "FILETAGS")
+                                (split-string (org-element-property :value e) ":" t)))))))))
+
+;; TODO: Support user-defined predicates, see old/org-zk-cache.el
+(defun org-zk--compile-file-query (query var)
+  (case (first query)
+    ('keyword
+     `(equal (org-el-cache-entry-keyword ,var ,(second query)) ,(third query)))
+    ('or `(or ,@(mapcar (lambda (q) (org-zk--compile-file-query q var)) (rest query))))
+    ('and `(and ,@(mapcar (lambda (q) (org-zk--compile-file-query q var)) (rest query))))))
+
+(defmacro org-zk-file-query (&rest query)
+  `(lambda (entry) ,(org-zk--compile-file-query `(and ,@query) 'entry)))
+
+(defun org-zk--compile-headline-query (query file headline)
+  (case (first query)
+    ('file-keyword
+     `(equal (org-el-cache-entry-keyword ,file ,(second query)) ,(third query)))
+    ('todo-keyword
+     `(equal (org-el-cache-entry-property ,headline :todo-keyword) ,(second query)))
+    ;; Simulate inheritance of file tags
+    ('tag
+     `(or (member ,(second query) (org-el-cache-entry-property ,file :tags))
+          (member ,(second query) (org-el-cache-entry-property ,headline :tags))))
+    ('or `(or ,@(mapcar (lambda (q) (org-zk--compile-headline-query q file headline)) (rest query))))
+    ('and `(and ,@(mapcar (lambda (q) (org-zk--compile-headline-query q file headline)) (rest query))))))
+
+(defmacro org-zk-headline-query (&rest query)
+  (let ((file-entry (gensym))
+        (headline-entry (gensym)))
+   `(lambda (,file-entry ,headline-entry)
+      ,(org-zk--compile-headline-query `(and ,@query) `,file-entry `,headline-entry))))
 
 (defun org-zk-next-tasks ()
   (interactive)
   (org-zk-task-list-show
    (org-el-cache-filter-headlines
-    (lambda (cached-file cached-hl)
-      (and (string= (org-el-cache-entry-keyword cached-file "GTD_STATE") "active")
-           (member (org-el-cache-entry-property cached-hl :todo-keyword)
-                   '("NEXT")))))))
+    (org-zk-headline-query
+     (file-keyword "GTD_STATE" "active")
+     (todo-keyword "NEXT")))))
+
+(defun org-zk-debug-text-prop ()
+  (interactive)
+  (pp (org-get-at-bol 'org-hd-marker)))
 
 (provide 'org-zk-task-list)

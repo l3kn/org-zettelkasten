@@ -94,7 +94,11 @@ Returns T if at least one keyword was deleted, NIL if not."
  '("book"
    "person"
    "concept"
-   "location"))
+   "location"
+   "uni"
+   "parallel processing"
+   "psychoanalysis"
+   "math"))
 
 (org-zk-def-keyword
  "FC_STATE"

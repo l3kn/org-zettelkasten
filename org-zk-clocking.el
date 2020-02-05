@@ -1,9 +1,8 @@
 (require 'ts)
 
 (require 'org-el-cache)
-(require 'org-zk-time)
 
-(def-org-el-cache-headline-hook headline-properties (element)
+(def-org-el-cache-headline-hook headline-timestamps (element)
   `(:deadline ,(org-zk-time-from-element
                 (org-element-property :deadline element)
                 'deadline)
@@ -11,11 +10,10 @@
                            (org-element-property :scheduled element)
                            'scheduled)
               :timestamps ,(org-zk-time--headline-timestamps element)
-              :clocks ,(org-zk-clocking--headline-clocks element)))
-
-(defun org-zk-clocking--headline-clocks (element)
-  (org-element-map element 'clock
-    #'org-zk-clock-from-element))
+              :clocks ,(org-element-map
+                           element
+                           'clock
+                         'org-zk-clock-from-element)))
 
 (defclass org-zk-clock ()
   ((begin :initarg :begin)
@@ -58,11 +56,17 @@
   "Time total in the time from BEGIN to END."
   (ts-human-duration
    (org-el-cache-reduce-headlines
-    (lambda (headline acc)
+    (lambda (_parent headline acc)
       (+ (loop for clock in (plist-get headline :clocks) summing
                (org-zk-clock-duration-in-range clock begin end))
          acc))
     0)))
+
+(defun org-zk-clocks-in-range (begin end)
+   (org-el-cache-filter-headlines
+    (lambda (_parent headline)
+      (plusp (loop for clock in (plist-get headline :clocks) summing
+                   (org-zk-clock-duration-in-range clock begin end))))))
 
 (defun org-zk-clocking-total-day ()
   (org-zk-clocking-total
@@ -71,7 +75,7 @@
 
 (defun org-zk-clocking-total-week ()
   (org-zk-clocking-total
-   (ts-adjust 'day -1 (org-zk-time-beginning-of-day))
+   (ts-adjust 'day -6 (org-zk-time-beginning-of-day))
    (org-zk-time-end-of-day)))
 
 (defun org-zk-clocking-total-month ()

@@ -22,8 +22,8 @@
   "Check if a derived task is not already active in `org-zk-derived-task-file'"
   (with-slots (title) task
     (not (--any
-          (and (string= (oref it title) title)
-               (eq (oref it todo-type) 'todo))
+          (and (string= (plist-get it :title) title)
+               (eq (plist-get it :todo-type) 'todo))
           current))))
 
 (defmacro def-org-zk-derived-task (title priority tags &rest body)
@@ -41,7 +41,7 @@
 (defun org-zk-derived-tasks-new ()
   "Generate a list of new derived tasks not already contained in
   the `org-zk-derived-task-file'."
-  (let ((current (oref (org-el-cache-get org-zk-derived-task-file) headlines)))
+  (let ((current (plist-get (org-el-cache-get org-zk-derived-task-file) :headlines)))
     (->> (hash-table-values org-zk-derived-tasks)
         (-filter 'org-zk-derived-task-due-p)
         (--filter (org-zk-derived-task-new-p it current)))))
@@ -57,7 +57,7 @@
               (org-insert-heading nil nil t)
               (insert (format "NEXT [#%s] %s" priority title))
               (org-set-tags tags))))
-        (save-file))))
+        (save-buffer))))
 
 (run-at-time nil org-zk-derived-tasks-interval 'org-zk-derived-tasks-update)
 
