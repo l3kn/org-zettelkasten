@@ -1,16 +1,17 @@
 ;; TODO: Group by source file
 (defun org-zk-backlinks-for-file (file)
   "Files linking to FILE."
-  (let ((links))
-    (maphash
+  (let ((links)
+        (file (expand-file-name file)))
+    (org-el-cache-each
+     org-zk-cache
      (lambda (key value)
        (dolist (link (plist-get value :links))
-         (if (string=
-              file
-              (plist-get link :full-path))
-             (push (cons key link) links))))
-     org-el-cache--table)
+         (if (string= file (plist-get link :full-path))
+             (push (cons key link) links)))))
     links))
+
+(org-zk-backlinks-for-file "~/org/deft/zettelkasten.org")
 
 (defun org-zk-backlinks-for-buffer ()
   "Files linking to the current buffer"
@@ -44,9 +45,11 @@
 (defun org-zk-backlink-update-buffer ()
   (interactive)
   (let ((backlinks (org-zk-backlinks-for-buffer))
-        (title (org-el-cache-file-keyword
-                (buffer-file-name)
-                "TITLE"
+        (title (or
+                (plist-get (org-el-cache-get
+                            org-zk-cache
+                            (buffer-file-name))
+                           :title)
                 (buffer-file-name))))
     (with-current-buffer org-zk-backlink-buffer
       (read-only-mode -1)
@@ -56,29 +59,12 @@
       (insert (format "#+TITLE: Backlinks for %s\n\n" title))
       (dolist (backlink backlinks)
         (let ((source (car backlink)))
-          (when-let ((entry (org-el-cache-get source)))
+          (when-let ((entry (org-el-cache-get org-zk-cache source)))
             (insert
              (format
               "* [[file:%s][%s]] \n"
               (car backlink)
-              (org-el-cache-entry-keyword
-               entry "TITLE"
-               (car backlink))))
+              (or (plist-get entry :title) (car backlink))))
             (insert (plist-get (cdr backlink) :context) "\n")
             (insert "\n"))))
       (read-only-mode))))
-
-(defun org-zk-trim-string (string)
-  "Remove trailing newlines from STRING"
-  (setq string (replace-regexp-in-string (rx (+ (any "\n"))) " " string))
-  (replace-regexp-in-string (rx (+ (any "\n")) eol) "" string))
-
-(defun org-zk-backlink-link-context (el)
-  (if-let ((parent (org-element-property :parent el)))
-      (cond
-       ((eq (org-element-type parent) 'paragraph)
-        (org-zk-trim-string (org-el-cache-interpret-data parent)))
-       ((eq (org-element-type parent) 'headline)
-        (org-zk-trim-string (org-element-property :raw-value parent)))
-       (t (org-zk-backlink-link-context parent)))
-    (org-zk-trim-string (org-el-cache-interpret-data el))))

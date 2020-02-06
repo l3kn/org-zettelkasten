@@ -1,6 +1,5 @@
 (require 'hydra)
 (require 'org-zk-keywords)
-(require 'org-zk-links)
 
 (defhydra org-zk-hydra (:hint none)
   "

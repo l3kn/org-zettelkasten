@@ -1,6 +1,14 @@
 (require 'org-zk-calendar)
 ;; (require 'org-zk-clocking)
 
+(defvar org-zk-inbox-file "/home/leon/org/inbox.org"
+  "File used for the inbox.")
+
+(defun org-zk-inbox-count ()
+  "Number of headlines in `org-zk-inbox-file'"
+  (length
+   (plist-get (org-el-cache-get org-zk-cache org-zk-inbox-file) :headlines)))
+
 (defun org-zk-dashboard-buffer ()
   (get-buffer-create "*Org Zettelkasten Dashboard*"))
 
@@ -73,7 +81,7 @@
   (hl-line-mode))
 
 (defun org-zk-format-time (time)
-  (format "%2d:%02d"
+  (format "%3d:%02d"
           (+
            (* 24 (plist-get time :days))
            (plist-get time :hours))
@@ -90,14 +98,14 @@
           (insert "\n")
           (insert (propertize (format "  Inbox: %d\n" inbox-count) 'face 'org-level-1)))
         (insert "\n")
-        ;; (let ((day (org-zk-clocking-total-day))
-        ;;       (week (org-zk-clocking-total-week))
-        ;;       (month (org-zk-clocking-total-month)))
-        ;;   (insert (propertize "  Clocking\n" 'face 'org-level-1))
-        ;;   (insert (format "    1 day:  %s\n" (org-zk-format-time day)))
-        ;;   (insert (format "    7 day:  %s\n" (org-zk-format-time week)))
-        ;;   (insert (format "   30 day:  %s\n" (org-zk-format-time month))))
-        ;; (insert "\n")
+        (let ((day (org-zk-clocking-total-day))
+              (week (org-zk-clocking-total-week))
+              (month (org-zk-clocking-total-month)))
+          (insert (propertize "  Clocking\n" 'face 'org-level-1))
+          (insert (format "    1 day:  %s\n" (org-zk-format-time day)))
+          (insert (format "    7 day:  %s\n" (org-zk-format-time week)))
+          (insert (format "   30 day:  %s\n" (org-zk-format-time month))))
+        (insert "\n")
         (insert "  [c] Full Calendar\n")
         (insert "  [t] Next Tasks\n")
         (insert "  [j] Projects\n")

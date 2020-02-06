@@ -1,19 +1,25 @@
-(require 'ts)
+;;; org-zk-clocking.el --- Cloking calculations for org-zettelkasten -*- lexical-binding: t; -*-
 
-(require 'org-el-cache)
+;; Copyright (C) 2020  Leon Rische
 
-(def-org-el-cache-headline-hook headline-timestamps (element)
-  `(:deadline ,(org-zk-time-from-element
-                (org-element-property :deadline element)
-                'deadline)
-              :scheduled ,(org-zk-time-from-element
-                           (org-element-property :scheduled element)
-                           'scheduled)
-              :timestamps ,(org-zk-time--headline-timestamps element)
-              :clocks ,(org-element-map
-                           element
-                           'clock
-                         'org-zk-clock-from-element)))
+;; Author: Leon Rische <emacs@leonrische.me>
+;; Package-requires: ((emacs "26.3"))
+;; Version: 0.0.1
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Clock Class
 
 (defclass org-zk-clock ()
   ((begin :initarg :begin)
@@ -52,21 +58,34 @@
          (diff (ts-diff end-cut begin-cut)))
     (if (plusp diff) diff 0)))
 
+;;; Cache Setup
+
+(def-org-el-cache org-zk-clocking-cache
+  (list org-zk-directory)
+  org-zk-cache-file
+  t)
+
+(org-el-cache-add-hook
+ org-zk-clocking-cache
+ :clocks
+ (lambda (filename el)
+   (org-element-map el 'clock
+     #'org-zk-clock-from-element)))
+
+(org-el-cache-update org-zk-clocking-cache)
+
+;;; Clocking Calculations
+
 (defun org-zk-clocking-total (begin end)
   "Time total in the time from BEGIN to END."
   (ts-human-duration
-   (org-el-cache-reduce-headlines
-    (lambda (_parent headline acc)
-      (+ (loop for clock in (plist-get headline :clocks) summing
+   (org-el-cache-reduce
+    org-zk-clocking-cache
+    (lambda (filename entry acc)
+      (+ (loop for clock in (plist-get entry :clocks) summing
                (org-zk-clock-duration-in-range clock begin end))
          acc))
     0)))
-
-(defun org-zk-clocks-in-range (begin end)
-   (org-el-cache-filter-headlines
-    (lambda (_parent headline)
-      (plusp (loop for clock in (plist-get headline :clocks) summing
-                   (org-zk-clock-duration-in-range clock begin end))))))
 
 (defun org-zk-clocking-total-day ()
   (org-zk-clocking-total

@@ -1,20 +1,23 @@
 (require 'org-el-cache)
 
 (defun org-zk-projects-by-state (state)
-  (org-el-cache-filter-files
-   (lambda (entry)
-     (equal
-      (org-el-cache-entry-keyword entry org-zk-gtd-state-keyword)
-      state))))
+  (org-el-cache-select
+   org-zk-cache
+   (lambda (filename entry)
+     (let* ((keywords (plist-get entry :keywords))
+            (state_ (alist-get "GTD_STATE" keywords nil nil 'string=)))
+       (equal state state_)))))
 
 (defun org-zk-projects-all ()
-  (org-el-cache-filter-files
-   (lambda (entry)
-     (let ((state (org-el-cache-entry-keyword entry "GTD_STATE")))
-       (or state (org-zk-ql-has-todos entry))))))
+  (org-el-cache-select
+   org-zk-cache
+   (lambda (filename entry)
+      (let* ((keywords (plist-get entry :keywords))
+             (state (alist-get "GTD_STATE" keywords nil nil 'string=)))
+       (or state (org-zk--has-todos entry))))))
 
 (defun org-zk-projects-buffer ()
-  (get-buffer-create "*Org Projects*"))
+  (get-buffer-create "*org-zk Projects*"))
 
 (defvar org-zk-projects-format
   (vector
@@ -29,20 +32,21 @@
      (lambda (hl) (string= (plist-get hl :todo-keyword) keyword))
      headlines)))
 
-(defun org-zk-projects-tabulate (cached-files)
+(defun org-zk-projects-tabulate (entries)
   (mapcar
    (lambda (entry)
-     (list
-      entry
-      (vector
-       (concat
-        (org-el-cache-entry-keyword entry "GTD_STATE" org-zk-default-file-state)
-        " "
-        (org-el-cache-entry-keyword entry "GTD_PRIORITY" org-zk-default-file-priority))
-       (org-el-cache-entry-keyword entry "TITLE" (plist-get entry :file))
-       (number-to-string (org-zk-projects-count-todo-keyword entry "NEXT"))
-       (number-to-string (org-zk-projects-count-todo-keyword entry "TODO")))))
-   cached-files))
+     (let ((keywords (plist-get entry :keywords)))
+       (list
+        entry
+        (vector
+         (concat
+          (alist-get "GTD_STATE" keywords org-zk-default-file-state nil 'string=)
+          " "
+          (alist-get "GTD_PRIORITY" keywords org-zk-default-file-priority nil 'string=))
+         (plist-get entry :title)
+         (number-to-string (org-zk-projects-count-todo-keyword entry "NEXT"))
+         (number-to-string (org-zk-projects-count-todo-keyword entry "TODO"))))))
+   entries))
 
 (define-derived-mode org-zk-projects-mode tabulated-list-mode "Org Projects"
   "Major mode for listing org gtd projects"

@@ -158,7 +158,14 @@
 (defun org-zk--compile-file-query (query var)
   (case (first query)
     ('keyword
-     `(equal (org-el-cache-entry-keyword ,var ,(second query)) ,(third query)))
+     `(equal
+       (alist-get
+        (plist-get ,var :keywords)
+        ,(second query)
+        nil
+        nil
+        'string=)
+       ,(third query)))
     ('or `(or ,@(mapcar (lambda (q) (org-zk--compile-file-query q var)) (rest query))))
     ('and `(and ,@(mapcar (lambda (q) (org-zk--compile-file-query q var)) (rest query))))))
 
@@ -168,7 +175,14 @@
 (defun org-zk--compile-headline-query (query file headline)
   (case (first query)
     ('file-keyword
-     `(equal (org-el-cache-entry-keyword ,file ,(second query)) ,(third query)))
+     `(equal
+       (alist-get
+        (plist-get ,var :keywords)
+        ,(second query)
+        nil
+        nil
+        'string=)
+       ,(third query)))
     ('todo-keyword
      `(equal (org-el-cache-entry-property ,headline :todo-keyword) ,(second query)))
     ;; Simulate inheritance of file tags

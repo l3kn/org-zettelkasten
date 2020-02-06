@@ -41,7 +41,9 @@
 (defun org-zk-derived-tasks-new ()
   "Generate a list of new derived tasks not already contained in
   the `org-zk-derived-task-file'."
-  (let ((current (plist-get (org-el-cache-get org-zk-derived-task-file) :headlines)))
+  (let ((current (plist-get
+                  (org-el-cache-get org-zk-cache org-zk-derived-task-file)
+                  :headlines)))
     (->> (hash-table-values org-zk-derived-tasks)
         (-filter 'org-zk-derived-task-due-p)
         (--filter (org-zk-derived-task-new-p it current)))))
@@ -59,6 +61,6 @@
               (org-set-tags tags))))
         (save-buffer))))
 
-(run-at-time nil org-zk-derived-tasks-interval 'org-zk-derived-tasks-update)
+(run-at-time "10 min" org-zk-derived-tasks-interval 'org-zk-derived-tasks-update)
 
 (provide 'org-zk-derived-tasks)
