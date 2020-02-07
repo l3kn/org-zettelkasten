@@ -17,6 +17,8 @@ This package is an attempt at alleviating this problem by introducing
 a caching layer that is persisted to disk, and a set of command for
 interacting with / viewing this data.
 
+The code for this cache can be found at [[https://github.com/l3kn/org-el-cache][l3kn/org-el-cache]].
+
 (Planned) features include:
 
 - A command for finding files by their titles
