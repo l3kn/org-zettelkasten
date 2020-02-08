@@ -84,9 +84,9 @@ If not, open PATH in the background, evaluate BODY, then save it."
 (defun org-zk-category-path (p) (plist-get p :path))
 (defun org-zk-category-ignore-p (p) (plist-get p :ignore))
 (defun org-zk-category-name-fn (p)
-  (plist-get p :name-fn 'org-zk-default-name-fn))
+  (getf p :name-fn 'org-zk-default-name-fn))
 (defun org-zk-category-setup-fn (p)
-  (getf plist-get p :setup-fn 'org-zk-default-setup-fn))
+  (getf p :setup-fn 'org-zk-default-setup-fn))
 
 (defun org-zk-category-for-file (filename)
   "Find the (sub)category FILENAME belongs to.
