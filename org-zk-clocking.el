@@ -62,7 +62,7 @@
 
 (def-org-el-cache org-zk-clocking-cache
   (list org-zk-directory)
-  org-zk-cache-file
+  org-zk-archive-cache-file
   t)
 
 (org-el-cache-add-hook

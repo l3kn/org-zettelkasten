@@ -23,6 +23,11 @@
   :type 'string
   :group 'org-zk)
 
+(defcustom org-zk-archive-cache-file "~/.emacs.d/.org-zk-archive-cache.el"
+  "File to persist the cache including archives in."
+  :type 'string
+  :group 'org-zk)
+
 ;;; Helper Functions / Macros
 
 (defun org-zk-trim-string (string)
