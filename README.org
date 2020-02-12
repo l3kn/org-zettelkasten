@@ -41,6 +41,7 @@ The code for this cache can be found at [[https://github.com/l3kn/org-el-cache][
 - [[https://jblevins.org/projects/deft/][deft]], Emacs mode for browsing, filtering & editing directories of files
 - [[https://github.com/EFLS/zetteldeft][EFLS/zetteldeft]], Zettelkasten system for deft
 - [[https://github.com/jethrokuan/org-roam/][jethrokuan/org-roam]], Extensions to deft, graph view
+- [[https://github.com/Kungsgeten/org-brain][Kungsgeten/org-brain]], concept mapping tool for org-mode, graph view
 - [[https://github.com/alphapapa/org-graph-view][alphapapa/org-graph-view]], Link-graph view for org-mode
 - [[https://github.com/alphapapa/org-ql][alphapapa/org-ql]], Query-language & views for org-mode
 
