@@ -18,16 +18,6 @@
   :type 'string
   :group 'org-zk)
 
-(defcustom org-zk-cache-file "~/.emacs.d/.org-zk-cache.el"
-  "File to persist the cache in."
-  :type 'string
-  :group 'org-zk)
-
-(defcustom org-zk-archive-cache-file "~/.emacs.d/.org-zk-archive-cache.el"
-  "File to persist the cache including archives in."
-  :type 'string
-  :group 'org-zk)
-
 ;;; Helper Functions / Macros
 
 (defun org-zk-trim-string (string)
@@ -41,8 +31,10 @@ If not, open PATH in the background, evaluate BODY, then save it."
   (declare (indent defun))
   `(let ((buffer (find-buffer-visiting ,path)))
      (if buffer
-    (with-current-buffer buffer ,@body)
-  (with-current-buffer (find-file-noselect ,path)
+         (with-current-buffer buffer
+           ,@body
+           (org-el-cache-process-buffer))
+       (with-current-buffer (find-file-noselect ,path)
          ,@body
          (save-buffer)
          (kill-buffer)))))
@@ -61,9 +53,12 @@ If not, open PATH in the background, evaluate BODY, then save it."
       (point))))
 
 
-;;; Category Setup
+;;; Collection Setup
 
 (defun org-zk-escape-filename (str)
+  (setq str (replace-regexp-in-string "ä" "ae" str))
+  (setq str (replace-regexp-in-string "ö" "oe" str))
+  (setq str (replace-regexp-in-string "ü" "ue" str))
   (setq str (replace-regexp-in-string " " "_" str))
   (setq str (replace-regexp-in-string
              (rx (not (in "a-zA-Z0-9" "-" "_"))) "" str))
@@ -81,40 +76,33 @@ If not, open PATH in the background, evaluate BODY, then save it."
 
 (defvar org-zk-file-blacklist '("./" "../" ".git/"))
 
-(defun org-zk-category-path (p) (plist-get p :path))
-(defun org-zk-category-ignore-p (p) (plist-get p :ignore))
-(defun org-zk-category-name-fn (p)
+(defun org-zk-collection-ignore-p (p) (plist-get p :ignore))
+(defun org-zk-collection-name-fn (p)
   (getf p :name-fn 'org-zk-default-name-fn))
-(defun org-zk-category-setup-fn (p)
+(defun org-zk-collection-setup-fn (p)
   (getf p :setup-fn 'org-zk-default-setup-fn))
 
-(defun org-zk-category-for-file (filename)
-  "Find the (sub)category FILENAME belongs to.
+(defun org-zk-collection-for-file (filename)
+  "Find the (sub)collection FILENAME belongs to.
 Returns NIL if FILENAME is not managed by org-zettelkasten."
   (seq-find
-   (lambda (category)
+   (lambda (c)
      (string-prefix-p
-      (expand-file-name (org-zk-category-path category))
+      (expand-file-name (plist-get c :path))
       (expand-file-name filename)))
-   org-zk-categories))
+   org-zk-collections))
 
-(defun org-zk-select-category (action)
-  "Select a category by its name,
-then call ACTION with the category that was selected."
+(defun org-zk-select-collection (action)
+  "Select a collection by its name,
+then call ACTION with the collection that was selected."
   (interactive)
   (let ((collection
          (mapcar
           (lambda (c) (cons (plist-get c :name) c))
-          org-zk-categories)))
-    (ivy-read "Category: " collection :action action)))
+          org-zk-collections)))
+    (ivy-read "Collection: " collection :action action)))
 
-;;; Cache Setup
-
-(def-org-el-cache org-zk-cache
-  (list org-zk-directory)
-  org-zk-cache-file)
-
-;;;; Links
+;;; Cache Selector Functions
 
 (defun org-zk-link-context (el)
   (if-let ((parent (org-element-property :parent el)))
@@ -126,45 +114,62 @@ then call ACTION with the category that was selected."
        (t (org-zk-link-context parent)))
     (org-zk-trim-string (org-el-cache-interpret-data el))))
 
-(org-el-cache-add-hook
- org-zk-cache
- :links
- (lambda (filename el)
-   (org-element-map el 'link
-      (lambda (child)
-        (list
-         :type (org-element-property :type child)
-         :path (org-element-property :path child)
-         :full-path (expand-file-name (org-element-property :path child))
-         :text (org-el-cache-interpret-data (org-element-contents child))
-         :context (org-zk-link-context child))))))
+(defun org-zk--cache-links (el)
+  (org-element-map el 'link
+    (lambda (child)
+      (list
+       :type (org-element-property :type child)
+       :path (org-element-property :path child)
+       :full-path (expand-file-name (org-element-property :path child))
+       :text (org-el-cache-interpret-data (org-element-contents child))
+       :context (org-zk-link-context child)))))
+
+(defun org-zk--cache-keywords (el)
+  (let ((first (car (org-element-contents el))))
+    (if (eq (org-element-type first) 'section)
+        (org-element-map first 'keyword
+          (lambda (e) (cons
+                  (org-element-property :key e)
+                  (org-element-property :value e)))))))
+
+(defun org-zk--cache-headlines (el)
+  (org-element-map el 'headline
+    (lambda (child)
+      (list
+       :begin (org-element-property :begin child)
+       :deadline (org-element-property :deadline child)
+       :scheduled (org-element-property :scheduled child)
+       :level (org-element-property :level child)
+       :priority (org-element-property :priority child)
+       :tags (org-element-property :tags child)
+       :todo-keyword (org-element-property :todo-keyword child)
+       :todo-type (org-element-property :todo-type child)
+       :title (org-element-property :raw-value child)
+       :effort (org-element-property :EFFORT child)
+       :style (org-element-property :STYLE child)))))
+
+;;; Cache Setup
+
+(def-org-el-cache org-zk-cache
+  (list org-zk-directory)
+  (lambda (filename el)
+    (let ((org-keywords (org-zk--cache-keywords el))
+          (collection (org-zk-collection-for-file filename)))
+      (list
+       :file filename
+       :links (org-zk--cache-links el)
+       :org-keywords org-keywords
+       :keywords
+       (split-string (alist-get "KEYWORDS" org-keywords "" nil #'string=) " " t)
+       :created
+       (alist-get "CREATED" org-keywords nil nil #'string=)
+       :title
+       (or (alist-get "TITLE" org-keywords nil nil #'string=)
+           (file-relative-name filename (plist-get collection :path)))
+       :collection (org-zk-collection-for-file filename)
+       :headlines (org-zk--cache-headlines el)))))
 
 ;;;; File keywords
-
-(org-el-cache-add-hook
- org-zk-cache
- :keywords
- (lambda (filename el)
-   (let ((first (car (org-element-contents el))))
-     (if (eq (org-element-type first) 'section)
-         (org-element-map first 'keyword
-           (lambda (e) (cons
-                   (org-element-property :key e)
-                   (org-element-property :value e))))))))
-
-(org-el-cache-add-hook
- org-zk-cache
- :title
- (lambda (filename el)
-   (let ((first (car (org-element-contents el))))
-     (if (eq (org-element-type first) 'section)
-         (or
-          (org-element-map first 'keyword
-            (lambda (e) (if (string= (org-element-property :key e) "TITLE")
-                       (org-element-property :value e)))
-            :first-match t)
-          filename)
-       filename))))
 
 (defun org-zk-file-title (file)
   "If FILE is in the org cache, return its title,
@@ -173,33 +178,6 @@ if not, return its filename."
     (if-let ((entry (org-el-cache-get org-zk-cache file)))
         (plist-get entry :title)
       file)))
-
-(org-el-cache-add-hook
- org-zk-cache
- :category
- (lambda (filename el)
-   (org-zk-category-for-file filename)))
-
-;;;; File Headlines
-
-(org-el-cache-add-hook
- org-zk-cache
- :headlines
- (lambda (filename el)
-   (org-element-map el 'headline
-     (lambda (child)
-       (list
-        :begin (org-element-property :begin child)
-        :deadline (org-element-property :deadline child)
-        :scheduled (org-element-property :scheduled child)
-        :level (org-element-property :level child)
-        :priority (org-element-property :priority child)
-        :tags (org-element-property :tags child)
-        :todo-keyword (org-element-property :todo-keyword child)
-        :todo-type (org-element-property :todo-type child)
-        :title (org-element-property :raw-value child)
-        :effort (org-element-property :EFFORT child)
-        :style (org-element-property :STYLE child))))))
 
 ;;;; Cache Initialization
 
@@ -219,8 +197,6 @@ if not, return its filename."
     (org-el-cache-clear org-zk-clocking-cache)
     (org-el-cache-update org-zk-clocking-cache)))
 
-(org-el-cache-update org-zk-cache)
-
 ;;;; Cache Update Hooks
 
 (if (fboundp 'ace-window)
@@ -230,15 +206,15 @@ if not, return its filename."
 ;;; File Selection
 
 (defun org-zk-files-with-titles ()
-  "Returns an alist of entries (title-with-category . filename)"
+  "Returns an alist of entries (title-with-collection . filename)"
   (org-el-cache-map
    org-zk-cache
    (lambda (filename entry)
-     (let ((category (plist-get entry :category))
+     (let ((collection (plist-get entry :collection))
            (title (plist-get entry :title)))
-       (if category
+       (if collection
            (cons
-            (format "%s (%s)" title (plist-get category :name))
+            (format "%s (%s)" title (plist-get collection :name))
             filename)
          (cons (format "%s" title) filename))))))
 
@@ -254,35 +230,22 @@ if not, return its filename."
 (defun org-zk-open-file ()
   "Select a file, then open it"
   (interactive)
-  (org-zk-select-file (lambda (selection) (find-file (cdr selection)))))
+  (org-zk-select-file
+   (lambda (selection)
+     (if (stringp selection)
+         (org-zk-new-file selection)
+         (find-file (cdr selection))))))
 
 ;;; Linking Files
 
-(org-link-set-parameters
- "zk_parent"
- :complete #'org-file-complete-link
- :follow #'find-file)
-
-(org-link-set-parameters
- "zk_child"
- :complete #'org-file-complete-link
- :follow #'find-file)
-
-(org-link-set-parameters
- "zk_friend"
- :complete #'org-file-complete-link
- :follow #'find-file)
-
-(defun org-zk-make-link (target type &optional title)
+(defun org-zk-make-link (target &optional title)
   (concat
-   "[[zk_" type ":" target "]["
-   (or title (org-zk-file-title target))
-   "]]"))
+   "[[file:" target "][" (or title (org-zk-file-title target)) "]]"))
 
-(defun org-zk-link-file (&optional type)
+(defun org-zk-link-file ()
   "Select a file, then insert an org-mode link to it,
 If `ivy-immediate-return' is used,
-creates a file with that title in category of the current file."
+creates a file with that title in collection of the current file."
   (interactive)
   (org-zk-select-file
    (lambda (selection)
@@ -290,24 +253,13 @@ creates a file with that title in category of the current file."
          (let* ((title (org-zk-titlecase (string-trim selection)))
                 (target (org-zk-create-file
                          title
-                         (org-zk-category-for-file (buffer-file-name)))))
-           (insert (org-zk-make-link target (or type "friend") title)))
+                         (org-zk-collection-for-file (buffer-file-name)))))
+           (insert (org-zk-make-link target title)))
        (insert (org-zk-make-link
-                (cdr selection)
-                (or type "friend")
+                (file-relative-name
+                 (cdr selection)
+                 (file-name-directory (buffer-file-name)))
                 (org-zk-file-title (cdr selection))))))))
-
-(defun org-zk-link-parent ()
-  (interactive)
-  (org-zk-link-file "parent"))
-
-(defun org-zk-link-child ()
-  (interactive)
-  (org-zk-link-file "child"))
-
-(defun org-zk-link-friend ()
-  (interactive)
-  (org-zk-link-file "friend"))
 
 ;;;; Finding Linked Files
 
@@ -328,21 +280,6 @@ creates a file with that title in category of the current file."
   (org-zk-files-linking-to (buffer-file-name)))
 
 ;;;; Updating / Deleting Links
-
-(defvar org-zk-link-re
-  (rx
-   "[[zk_"
-   (group-n 1 (or "parent" "child" "friend"))
-   ":"
-   (group-n 2 (* (not (any "]"))))
-   "]["
-   (group-n 3 (* (not (any "]"))))
-   "]]")
-  "Regex matching zettelkasten links.
-Groups:
-1. type
-2. target
-3. text / title")
 
 (defvar org-zk-deleted-link-text "(deleted)")
 
@@ -441,36 +378,36 @@ if so, insert a link to it in the edge list, prompting for a description."
   "Read a string to use as document title."
   (org-zk-titlecase (string-trim (read-string "Title: "))))
 
-(defun org-zk-new-file ()
+(defun org-zk-new-file (&optional title)
   "Create a new org zettelkasten file.
 Prompts for a title, and a project, then uses the projects
 name-fn to generate a filename."
   (interactive)
-  (org-zk-select-category
-   (lambda (category)
-     (let* ((category (cdr category))
-            (title (org-zk-read-title))
-            (name-fn (org-zk-category-name-fn category))
-            (setup-fn (org-zk-category-setup-fn category))
+  (org-zk-select-collection
+   (lambda (c)
+     (let* ((collection (cdr c))
+            (title (or title (org-zk-read-title)))
+            (name-fn (org-zk-collection-name-fn collection))
+            (setup-fn (org-zk-collection-setup-fn collection))
             (name (funcall name-fn title))
             (file (expand-file-name
                    (concat name ".org")
-                   (org-zk-category-path category))))
+                   (plist-get collection :path))))
        (if (file-exists-p file)
            (error "Aborting, file already exists: %s" file))
        (find-file file)
        (funcall setup-fn title)
        (save-buffer)))))
 
-(defun org-zk-create-file (title category)
-  "Create a new org zettelkasten file given its category and title.
+(defun org-zk-create-file (title collection)
+  "Create a new org zettelkasten file given its collection and title.
 Returns the name of the new file"
-  (let* ((name-fn (org-zk-category-name-fn category))
-         (setup-fn (org-zk-category-setup-fn category))
+  (let* ((name-fn (org-zk-collection-name-fn collection))
+         (setup-fn (org-zk-collection-setup-fn collection))
          (name (funcall name-fn title))
          (file (expand-file-name
                 (concat name ".org")
-                (org-zk-category-path category))))
+                (plist-get collection :path))))
     (if (file-exists-p file)
         (error "Aborting, file already exists: %s" file))
     (with-current-buffer (find-file-noselect file)
@@ -518,27 +455,57 @@ buffer."
   (org-zk-select-file
    (lambda (selection) (org-zk--file-to-headline (cdr selection)))))
 
+;;; (Changing) File Keywords
+
+(defun org-zk-keywords-used ()
+  "List of all keywords used."
+  (let (keywords)
+    (org-el-cache-each
+     org-zk-cache
+     (lambda (_filename entry)
+       (dolist (kw (plist-get entry :keywords))
+         (if (not (member kw keywords))
+             (push kw keywords)))))
+    keywords))
+
+(defun org-zk-add-keyword (kw)
+  "Add a keyword to the current buffer."
+  (interactive (list (org-zk-read-keyword)))
+  (org-zk-keywords-list-add "KEYWORDS" kw))
+
+(defun org-zk-edit-keywords (kw-string)
+  "Edit keywords of the current buffer."
+  (interactive (list (read-string
+                      "Keywords: "
+                      (org-zk-keywords-get "KEYWORDS"))))
+  (org-zk-keywords-set-or-add "KEYWORDS" kw-string))
+
+(defun org-zk-read-keyword ()
+  "Read a keyword."
+  (ivy-completing-read "Keyword: " (org-zk-keywords-used)))
+
 ;;; Agenda Hacks
 
 (defun org-zk--has-todos (entry)
   (plusp
    (count-if
     (lambda (hl)
-      (or (string= (plist-get hl :todo-keyword) "NEXT")
+  (or (string= (plist-get hl :todo-keyword) "NEXT")
           (string= (plist-get hl :todo-keyword) "TODO")))
     (plist-get entry :headlines))))
 
 (defun org-zk--agenda-files ()
-  (mapcar
-   (lambda (entry) (plist-get entry :file))
-   (org-el-cache-filter
-    org-zk-cache
-    (lambda (key value)
-      (let* ((keywords (plist-get value :keywords))
-             (state (alist-get "GTD_STATE" keywords nil nil 'string=)))
-        (or
-         (string= state "active")
-         (and (null state) (org-zk--has-todos value))))))))
+  (let ((files))
+    (org-el-cache-each
+     org-zk-cache
+     (lambda (key value)
+       (let* ((keywords (plist-get value :org-keywords))
+              (state (alist-get "GTD_STATE" keywords nil nil 'string=)))
+         (if (or
+              (string= state "active")
+              (and (null state) (org-zk--has-todos value)))
+             (push key files)))))
+    files))
 
 (defun org-zk-agenda ()
   (interactive)
