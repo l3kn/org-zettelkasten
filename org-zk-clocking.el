@@ -62,15 +62,10 @@
 
 (def-org-el-cache org-zk-clocking-cache
   (list org-zk-directory)
-  org-zk-archive-cache-file
-  t)
-
-(org-el-cache-add-hook
- org-zk-clocking-cache
- :clocks
- (lambda (filename el)
-   (org-element-map el 'clock
-     #'org-zk-clock-from-element)))
+  (lambda (filename el)
+    (list
+     :clocks (org-element-map el 'clock #'org-zk-clock-from-element)))
+  :include-archives t)
 
 (org-el-cache-update org-zk-clocking-cache)
 

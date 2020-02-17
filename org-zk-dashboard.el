@@ -1,6 +1,3 @@
-(require 'org-zk-calendar)
-;; (require 'org-zk-clocking)
-
 (defvar org-zk-inbox-file "/home/leon/org/inbox.org"
   "File used for the inbox.")
 
@@ -70,7 +67,8 @@
         (set-keymap-parent map tabulated-list-mode-map)
         (define-key map (kbd "c") 'org-zk-agenda-list)
         (define-key map (kbd "t") 'org-zk-todo-list)
-        (define-key map (kbd "j") 'org-zk-projects)
+        (define-key map (kbd "j") 'org-zk-project-view-active)
+        (define-key map (kbd "f") 'org-zk-file-view)
         (define-key map (kbd "RET") 'org-zk-dashboard-open)
         (define-key map (kbd "n") 'org-zk-dashboard-goto-next)
         (define-key map (kbd "p") 'org-zk-dashboard-goto-prev)
@@ -109,6 +107,7 @@
         (insert "  [c] Full Calendar\n")
         (insert "  [t] Next Tasks\n")
         (insert "  [j] Projects\n")
+        (insert "  [f] Files\n")
         (insert "\n")
         (insert "  [q] Quit\n")
         (insert "\n")

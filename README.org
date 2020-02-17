@@ -87,87 +87,36 @@ This could be implemented using [[https://www.gnu.org/software/emacs/manual/html
 however in that case, there is no one way to see the configuration for
 all categories and each variable that is set has to be declared
 non-risky.
-** Components
-*** ~org-zk-keywords~
-File-level attributes are stored as =#+KEY: value= org mode keywords.
-These should be placed at the start of the file, not containing any
-newlines before or between keywords.
+** Backlink View
+A sidebar displaying all files linking to the file currently being
+viewed.
+** File View
+The file view shows a list of all files included in org-zk.
+It can be used to quickly edit file metadata or find all files
+matching some query.
 
-- ~(org-zk-keywords-set-or-add (key value))~
-- ~(org-zk-keywords-add (key value))~
-- ~(org-zk-keywords-delete (key))~
+~M-x org-zk-file-view~ or =F= from the org-zk-hydra.
 
-The macro ~org-zk-def-keyword~ can be used to create commands to set
-keywords to one of a list of predefined values using ~ivy-read~.
-When generating the functions name, the keyword is converted to
-lowercase and "_" are replaced by "-".
+*** Hotkeys
+- =RET= to open a file
+- =k= to edit a files keywords
+*** TODO Screenshot
+*** Queries
+- ~keyword:my-keyword~ or ~k:my-keyword~
+- ~category:my-category~ or ~c:my-keyword~ (uses org-zk categories,
+  not the org-mode =#+CATEGORY= keyword)
+** Project View
+Variant of the file view for managing GTD projects using the
+=#+GTD_STATE= keyword.
 
-**** Example
-#+begin_src emacs-lisp
-  (org-zk-def-keyword
-   "GTD_STATE"
-   '("active"
-     "someday"
-     "planning"
-     "cancelled"
-     "done"))
-#+end_src
-
-Generated function: ~org-zk-set-gtd-state~
-*** ~org-zk-cache~
-By default, emacs is not fast enough to efficiently search large collections (>1k
-files) for TODO keywords, tags, dates etc.
-
-To get around this limitation, a cache is introduced.
-
-This cache works by running ~org-element-process-buffer~ each time a
-file is saved or the buffer moves out of focus (e.g. when switching to
-another window or buffer).
-
-Sub-modules can register on element types to compute data on a file or
-headline level that can then be used to implement fast views on all
-the data in the zettelkasten, e.g. for listing open projects, tasks or
-calendar entries, generating clocking reports and statistics or for
-use with the integrated spaced repetition system.
-
-A query language is implemented on this cache for building custom
-views on the data.
-*** ~org-zk-links~
-There are three types of links, *parent*, *child* and *friend*.
-
-When adding a link to some target, a link pointing back to the
-current file is added to the link list of the target file,
-using the inverse (parent <-> child, friend <-> friend) link type.
-
-Links to other files that are not part of the main text are placed in
-a list at the beginning of the file, right after the keywords.
-
-When adding links, the current search term can be used to create a
-new note using ~ivy-immediate-done~, by default bound to ~C-M-j~.
-
-I've rebound it to ~C-d~.
-
-#+begin_src emacs-lisp
-  (define-key ivy-minibuffer-map (kbd "C-d") 'ivy-immediate-done)
-#+end_src
-
-The ~org-zk-hydra~ can be used to quickly add links to the current file.
-If *follow-mode* is active, after adding a link the target file is
-opened. This is useful for quickly creating "mind-maps" without
-entering text or other links to each file.
-*** ~org-zk-titlecase~
-When creating a note using the ~org-zk~ commands,
-the title that is entered is automatically converted to title-case.
-
-This only works for English text and not all rules are implemented.
-Multi-word conjunctions are not supported yet.
-** Testing
-Integration testing is done by providing an input file,
-a set of operations and an file with the expected output.
-
-The output is written to a third =_got= file, which can be diffed with
-the expected output or used to replace the =_expected= file if the
-output generated was valid.
+Based on this keyword, a view of all (active) projects can be created
+and it's easy to mark a whole project as =on_hold= or =someday= to
+remove it's tasks from the task view.
+** TODO Task View
+Simplified analog to the =org-agenda= that uses cached headlines.
+** TODO Calendar View
+Variant of the task view that takes into account repeated tasks
+and limits the display to tasks scheduled or due in the next n days.
 ** ~git~
 I'm willing to sacrifice a bit of memory and meaningful commit
 messages to make sure no information / history is lost.
@@ -229,9 +178,63 @@ least five entries in the inbox.
   (def-org-zk-derived-task "Process Inbox" "A" '("gtd")
     (>= (org-zk-inbox-count) 5))
 #+end_src
-** Project View
-Files can be tagged as GTD projects using the =#+GTD_STATE= keyword.
+** Components
+*** ~org-zk-keywords~
+File-level attributes are stored as =#+KEY: value= org mode keywords.
+These should be placed at the start of the file, not containing any
+newlines before or between keywords.
 
-Based on this keyword, a view of all (active) projects can be created
-and it's easy to mark a whole project as =on_hold= or =someday= to
-remove it's tasks from the task view.
+- ~(org-zk-keywords-set-or-add (key value))~
+- ~(org-zk-keywords-add (key value))~
+- ~(org-zk-keywords-delete (key))~
+
+The macro ~org-zk-def-keyword~ can be used to create commands to set
+keywords to one of a list of predefined values using ~ivy-read~.
+When generating the functions name, the keyword is converted to
+lowercase and "_" are replaced by "-".
+
+**** Example
+#+begin_src emacs-lisp
+  (org-zk-def-keyword
+   "GTD_STATE"
+   '("active"
+     "someday"
+     "planning"
+     "cancelled"
+     "done"))
+#+end_src
+
+Generated function: ~org-zk-set-gtd-state~
+*** ~org-zk-cache~
+By default, emacs is not fast enough to efficiently search large collections (>1k
+files) for TODO keywords, tags, dates etc.
+
+To get around this limitation, a cache is introduced.
+
+This cache works by running ~org-element-process-buffer~ each time a
+file is saved or the buffer moves out of focus (e.g. when switching to
+another window or buffer).
+
+Sub-modules can register on element types to compute data on a file or
+headline level that can then be used to implement fast views on all
+the data in the zettelkasten, e.g. for listing open projects, tasks or
+calendar entries, generating clocking reports and statistics or for
+use with the integrated spaced repetition system.
+
+A query language is implemented on this cache for building custom
+views on the data.
+*** ~org-zk-titlecase~
+When creating a note using the ~org-zk~ commands,
+the title that is entered is automatically converted to title-case.
+
+This only works for English text and not all rules are implemented.
+Multi-word conjunctions are not supported yet.
+** Testing
+Integration testing is done by providing an input file,
+a set of operations and an file with the expected output.
+
+The output is written to a third =_got= file, which can be diffed with
+the expected output or used to replace the =_expected= file if the
+output generated was valid.
+** Credits
+- The file view uses the same font faces as [[https://github.com/skeeto/elfeed][skeeto/elfeed]].

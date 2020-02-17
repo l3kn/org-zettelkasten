@@ -1,7 +1,7 @@
 (require 'org-zk-repeat)
 
 ;; TODO: Implement as headline hook
-(defun org-zk-calendar--time-entries ()
+(defun org-zk-calendar-view--time-entries ()
   (org-el-cache-mapcan-headlines
    (lambda (_cached-file headline)
      (let ((entries nil))
@@ -18,14 +18,14 @@
                             (plist-get headline :timestamps))))
        entries))))
 
-(defvar org-zk-calendar-n-days 14)
+(defvar org-zk-calendar-view-n-days 14)
 
-(defface org-zk-calendar-today-face
+(defface org-zk-calendar-view-today-face
   '((t . (:inherit font-lock-keyword-face)))
   "Face to highlight entries for the current day"
-  :group 'org-zk-calendar)
+  :group 'org-zk-calendar-view)
 
-(defun org-zk-calendar--repeated-time-entries (n-days)
+(defun org-zk-calendar-view--repeated-time-entries (n-days)
   "Generate a list of all entries with a timestamp,
 including repetitions of timestamps.
 Returns a list of elements (headline ts type)."
@@ -39,26 +39,26 @@ Returns a list of elements (headline ts type)."
         (org-zk-repeat-repetitions-next-n-days
          entry
          n-days))))
-   (org-zk-calendar--time-entries)))
+   (org-zk-calendar-view--time-entries)))
 
-(defun org-zk-calendar-buffer ()
-  (get-buffer-create "*Org Zettelkasten Calendar*"))
+(defun org-zk-calendar-view-buffer ()
+  (get-buffer-create "*org-zettelkasten Calendar*"))
 
-(setq org-zk-calendar-format
+(setq org-zk-calendar-view-format
       (vector
        (list "Date" 20 t)
        (list "Type" 10 t)
        (list "File" 20 t)
        (list "Title" 20 t)))
 
-(defun org-zk-calendar--ts-format (ts)
+(defun org-zk-calendar-view--ts-format (ts)
   (if ts
       (if (and (ts-hour ts) (ts-minute ts))
           (ts-format "%Y-%m-%d %H:%M" ts)
         (ts-format "%Y-%m-%d" ts))
     "----"))
 
-(defun org-zk-calendar-tabulate (entries)
+(defun org-zk-calendar-view-tabulate (entries)
   (mapcar
    (lambda (entry)
      (let* ((headline (plist-get entry :headline))
@@ -66,7 +66,7 @@ Returns a list of elements (headline ts type)."
        (list
         entry
         (vector
-         (org-zk-calendar--ts-format (plist-get entry :repetition))
+         (org-zk-calendar-view--ts-format (plist-get entry :repetition))
          (symbol-name (plist-get entry :type))
          ;; TODO: Find title
          (or (org-el-cache-file-keyword file "TITLE")
@@ -74,47 +74,48 @@ Returns a list of elements (headline ts type)."
          (plist-get headline :title)))))
    entries))
 
-(defun org-zk-calendar-open ()
+(defun org-zk-calendar-view-open ()
   (interactive)
   (let* ((headline (plist-get (tabulated-list-get-id) :headline)))
     (find-file (plist-get headline :file))
     (goto-char (plist-get headline :begin))))
 
-(setq org-zk-calendar-mode-map
+(setq org-zk-calendar-view-mode-map
       (let ((map (make-sparse-keymap)))
         (set-keymap-parent map tabulated-list-mode-map)
-        (define-key map (kbd "RET") 'org-zk-calendar-open)
+        (define-key map (kbd "RET") 'org-zk-calendar-view-open)
         map))
 
-(define-derived-mode org-zk-calendar-mode tabulated-list-mode "Org Zettelkasten Calendar"
+(define-derived-mode org-zk-calendar-view-mode tabulated-list-mode "org-zk Calendar"
   "Major mode for listing org calendar entries"
   (hl-line-mode))
 
-(defun org-zk-calendar ()
+(defun org-zk-calendar-view ()
   (interactive)
-  (let ((entries (org-zk-calendar--repeated-time-entries org-zk-calendar-n-days)))
-    (with-current-buffer (org-zk-calendar-buffer)
-      (setq tabulated-list-format org-zk-calendar-format)
-      (org-zk-calendar-mode)
+  (let ((entries (org-zk-calendar-view--repeated-time-entries org-zk-calendar-view-n-days)))
+    (with-current-buffer (org-zk-calendar-view-buffer)
+      (setq tabulated-list-format org-zk-calendar-view-format)
+      (org-zk-calendar-view-mode)
       (tabulated-list-init-header)
-      (setq tabulated-list-entries (org-zk-calendar-tabulate entries))
+      (setq tabulated-list-entries (org-zk-calendar-view-tabulate entries))
       (setq tabulated-list-sort-key (cons "Date" nil))
-      (setq tabulated-list-printer #'org-zk-calendar-print-entry)
+      (setq tabulated-list-printer #'org-zk-calendar-view-print-entry)
       (tabulated-list-print)
       (switch-to-buffer (current-buffer)))))
 
-(defun org-zk-calendar--today-p (ts)
+(defun org-zk-calendar-view--today-p (ts)
   (let ((now (ts-now)))
     (and
      (eq (ts-year ts) (ts-year now))
      (eq (ts-month ts) (ts-month now))
      (eq (ts-day ts) (ts-day now)))))
 
-(defun org-zk-calendar--face (entry)
+(defun org-zk-calendar-view--face (entry)
   (let ((ts (plist-get entry :repetition)))
-    (if (org-zk-calendar--today-p ts) 'bold 'default)))
+    (if (org-zk-calendar-view--today-p ts) 'bold 'default)))
 
-(defun org-zk-calendar-print-entry (id cols)
+;; TODO: Move this to the tabulate function
+(defun org-zk-calendar-view-print-entry (id cols)
   "Insert a Tabulated List entry at point.
 This is the default `tabulated-list-printer' function.  ID is a
 Lisp object identifying the entry to print, and COLS is a vector
@@ -140,6 +141,6 @@ of column descriptors."
     (put-text-property
      beg (point)
      'face
-     (org-zk-calendar--face id))))
+     (org-zk-calendar-view--face id))))
 
-(provide 'org-zk-calendar)
+(provide 'org-zk-calendar-view)

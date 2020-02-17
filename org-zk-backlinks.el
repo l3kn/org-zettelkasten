@@ -11,8 +11,6 @@
              (push (cons key link) links)))))
     links))
 
-(org-zk-backlinks-for-file "~/org/deft/zettelkasten.org")
-
 (defun org-zk-backlinks-for-buffer ()
   "Files linking to the current buffer"
   (org-zk-backlinks-for-file (buffer-file-name)))
@@ -20,16 +18,16 @@
 (defcustom org-zk-backlink-buffer-position 'right
   "Position of the backlink buffer")
 
-(defvar org-zk-backlink-buffer "*org-zk Backlinks*")
+(defun org-zk-backlink-buffer () (get-buffer-create "*org-zk Backlinks*"))
 
 (defun org-zk-backlink-setup-buffer ()
   (display-buffer-in-side-window
-   (get-buffer-create org-zk-backlink-buffer)
+   (org-zk-backlink-buffer)
    `((side . ,org-zk-backlink-buffer-position))))
 
 (defun org-zk-backlinks ()
   (interactive)
-  (when (org-el-cache-member-p (buffer-file-name))
+  (when (org-el-cache-member-p org-zk-cache (buffer-file-name))
     (org-zk-backlink-setup-buffer)
     (org-zk-backlink-update-buffer)))
 
@@ -37,7 +35,7 @@
   (interactive)
   (when (eq major-mode 'org-mode)
     (if-let ((filename (buffer-file-name)))
-        (if (org-el-cache-member-p filename)
+        (if (org-el-cache-member-p org-zk-cache filename)
             (org-zk-backlink-update-buffer)))))
 
 (advice-add #'select-window :after #'org-zk-backlink-hook)
@@ -51,7 +49,7 @@
                             (buffer-file-name))
                            :title)
                 (buffer-file-name))))
-    (with-current-buffer org-zk-backlink-buffer
+    (with-current-buffer (org-zk-backlink-buffer)
       (read-only-mode -1)
       (erase-buffer)
       (org-mode)
@@ -68,3 +66,5 @@
             (insert (plist-get (cdr backlink) :context) "\n")
             (insert "\n"))))
       (read-only-mode))))
+
+(provide 'org-zk-backlinks)
