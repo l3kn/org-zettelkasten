@@ -249,6 +249,8 @@ creates a file with that title in collection of the current file."
   (interactive)
   (org-zk-select-file
    (lambda (selection)
+     (unless (or (bolp) (looking-at " "))
+       (insert " "))
      (if (stringp selection)
          (let* ((title (org-zk-titlecase (string-trim selection)))
                 (target (org-zk-create-file
