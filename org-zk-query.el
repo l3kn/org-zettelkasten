@@ -47,7 +47,7 @@
         (error "org-zk: Malformed query part"))
       (if-let ((predicate (alist-get (car tokens) predicates nil nil #'string=)))
           (funcall predicate (cadr tokens) var)
-        (error "org-zk: Unknown query predicate %s" key)))))
+        (error "org-zk: Unknown query predicate %s" (car tokens))))))
 
 (defun org-zk-query-compile (query predicates var)
   (cond
@@ -60,7 +60,7 @@
        (and
         ,@(mapcar
            (lambda (part) (org-zk-query-compile-part part predicates var))
-           parts))))))
+           query))))))
 
 (defun org-zk-query (query predicates)
   (let* ((tokens (org-zk-query-tokenize query))
@@ -72,6 +72,9 @@
 
 (defun org-zk-query-pred-todo-keyword (arg var)
   `(equal (plist-get ,var :todo-keyword) ,arg))
+
+(defun org-zk-query-pred-tag (arg var)
+  `(member ,arg (plist-get ,var :tags)))
 
 (defun org-zk-query-pred-keyword (arg var)
   `(some (lambda (kw) (string= kw ,arg)) (plist-get ,var :keywords)))
@@ -85,7 +88,8 @@
 ;;; Predicate Sets
 
 (setq org-zk-query-hl-predicates
-      `(("t" . ,#'org-zk-query-pred-todo-keyword)))
+      `(("t" . ,#'org-zk-query-pred-todo-keyword)
+        ("g" . ,#'org-zk-query-pred-tag)))
 
 (setq org-zk-query-file-predicates
       `(("k" . ,#'org-zk-query-pred-keyword)
