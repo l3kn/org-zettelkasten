@@ -123,6 +123,7 @@
   (get-buffer-create "org-zk Tasks"))
 
 (defun org-zk-task-view-show (file-query hl-query)
+  (org-zk-cache-update)
   (let ((file-hls
          (org-zk-task-view-headlines
           (org-zk-query file-query org-zk-query-file-predicates)

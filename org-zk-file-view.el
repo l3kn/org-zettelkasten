@@ -88,6 +88,7 @@
   (get-buffer-create "org-zk File View"))
 
 (defun org-zk-file-view-show (query)
+  (org-zk-cache-update)
   (setq org-zk-file-view-filter query)
   (let* ((pred (org-zk-query query org-zk-query-file-predicates))
          (files (org-el-cache-select org-zk-cache pred)))

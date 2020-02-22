@@ -64,7 +64,7 @@
             projects))
 
 (defun org-zk-project-view-show (query)
-  (interactive)
+  (org-zk-cache-update)
   (setq org-zk-project-view-filter query)
   (let* ((pred (org-zk-query query org-zk-query-file-predicates))
          (files (org-el-cache-select org-zk-cache
