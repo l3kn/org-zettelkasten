@@ -208,8 +208,14 @@ if not, return its filename."
 
 ;;; File Selection
 
+(defun org-zk-files ()
+  "Return a list of all files managed by org-zettelkasten."
+  (org-el-cache-map
+   org-zk-cache
+   (lambda (filename _entry) filename)))
+
 (defun org-zk-files-with-titles ()
-  "Returns an alist of entries (title-with-collection . filename)"
+  "Return an alist of entries (title-with-collection . filename)"
   (org-el-cache-map
    org-zk-cache
    (lambda (filename entry)
@@ -551,6 +557,20 @@ buffer."
         (save-buffer)
         (kill-buffer))))
   (delete-file file))
+
+;;; Headline IDs
+
+(defun org-zk-add-ids-to-buffer ()
+  "Make sure all task headlines in the current file have an ID property"
+  (interactive)
+  ;; Can't use `org-map-entries' as it opens a prompt when run inside
+  ;; a buffer that hasn't been saved yet (Non-existing file / org
+  ;; agenda)
+  (save-excursion
+    (goto-char (point-max))
+    (while (outline-previous-heading)
+      (if (org-entry-is-todo-p)
+          (org-id-get-create)))))
 
 ;;; Exports
 
