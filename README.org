@@ -48,14 +48,50 @@ The code for this cache can be found at [[https://github.com/l3kn/org-el-cache][
 If you are not working with > 1000 org-mode files or if you have no
 yet run into any performance problems, one (or a combination of
 multiple) of the packages listed above might fit your needs better.
+** Limitations
+org-zettelkasten uses a cache to enable fast searching of files and
+headlines.
+
+This cache is updated each time a file is *saved*, so to ensure the
+information displayed in the views is up to date, files should be
+saved often.
+
+I'm using [[https://github.com/bbatsov/super-save/][bbatsov/super-save]] for that.
+
+A big limitation when working with cached headlines is that we can't
+use markers (like org-agenda does) to jump to a headline in a file,
+as these can't be persisted to disk.
+
+Instead, headline IDs are used for that.
+
+This means that every headline that should be accessible through one
+of the views must have an ID.
+
+There are two functions to make this easier:
+
+~org-zk-add-ids-to-buffer~ adds IDs to all task-headlines in the
+current buffer.
+
+I'm using a hook to do this each time a file is saved.
+
+#+begin_src emacs-lisp
+  (add-hook
+   'org-mode-hook
+   (lambda ()
+     (add-hook 'before-save-hook 'org-zk-add-ids-to-buffer nil 'local)))
+#+end_src
+
+If you want to use org-zettelkasten for an existing collection of
+files, you can use ~M-x org-zk-refactor-add-ids~ to add IDs to all
+files managed by org-zettelkasten.
 ** Dependencies
 - [[https://github.com/abo-abo/swiper][abo-abo/swiper]]
   For searching / selecting files
 - [[https://github.com/abo-abo/ace-link][abo-abo/ace-link]]
   For following links
 - [[https://github.com/abo-abo/hydra][abo-abo/hydra]]
-** Categories
-~org-zk-categories~ is used to customize org-zk settings per directory.
+** Collections
+~org-zk-collections~ is used to customize org-zk settings per directory.
 Entries should be of the form ~(:path ... :other-settings ...)~.
 
 This is most useful for configuring the ~:setup-fn~ for a file.
@@ -72,7 +108,7 @@ Here is the configuration I'm using for my personal setup:
     (insert "#+SETUPFILE: ~/org/website/setup.org\n")
     (org-zk-default-setup-fn title))
 
-  (setq org-zk-categories
+  (setq org-zk-collections
         '((:path "~/org/flashcards/" :name "fc")
           (:path "~/org/sandbox/" :name "sandbox")
           (:path "~/org/archives/" :name "archives" :ignore t)
@@ -87,7 +123,10 @@ This could be implemented using [[https://www.gnu.org/software/emacs/manual/html
 however in that case, there is no one way to see the configuration for
 all categories and each variable that is set has to be declared
 non-risky.
-** Backlink View
+** TODO Backlink View
+:PROPERTIES:
+:ID:       e91516d4-efe2-43ee-a5d4-2106b8e2d7c0
+:END:
 A sidebar displaying all files linking to the file currently being
 viewed.
 ** File View
@@ -101,6 +140,9 @@ matching some query.
 - =RET= to open a file
 - =k= to edit a files keywords
 *** TODO Screenshot
+:PROPERTIES:
+:ID:       08bd91bc-f39b-43c3-bae1-e5353f7c1b59
+:END:
 *** Queries
 - ~keyword:my-keyword~ or ~k:my-keyword~
 - ~category:my-category~ or ~c:my-keyword~ (uses org-zk categories,
@@ -113,8 +155,14 @@ Based on this keyword, a view of all (active) projects can be created
 and it's easy to mark a whole project as =on_hold= or =someday= to
 remove it's tasks from the task view.
 ** TODO Task View
+:PROPERTIES:
+:ID:       2e8af26d-fd38-4a31-a0fb-fa84bfc24ce5
+:END:
 Simplified analog to the =org-agenda= that uses cached headlines.
 ** TODO Calendar View
+:PROPERTIES:
+:ID:       6d5ce334-d249-4fd1-9ebb-d0f029b0e196
+:END:
 Variant of the task view that takes into account repeated tasks
 and limits the display to tasks scheduled or due in the next n days.
 ** ~git~

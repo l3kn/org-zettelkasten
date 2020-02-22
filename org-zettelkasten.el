@@ -14,5 +14,6 @@
 (require 'org-zk-file-view)
 (require 'org-zk-project-view)
 ;; (require 'org-zk-backlinks)
+(require 'org-zk-refactor)
 
 (provide 'org-zettelkasten)
