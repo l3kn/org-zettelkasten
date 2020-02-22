@@ -27,17 +27,19 @@
 
 (defmacro org-zk-in-file (path &rest body)
   "If there is a buffer visiting PATH, use it to evaluate BODY,
-If not, open PATH in the background, evaluate BODY, then save it."
+If not, open PATH in the background, evaluate BODY, then save it.
+The result of the last expression in BODY is returned."
   (declare (indent defun))
   `(let ((buffer (find-buffer-visiting ,path)))
      (if buffer
          (with-current-buffer buffer
-           ,@body
-           (org-el-cache-process-buffer))
+           (prog1 (progn ,@body)
+             (org-el-cache-process-buffer)))
        (with-current-buffer (find-file-noselect ,path)
-         ,@body
-         (save-buffer)
-         (kill-buffer)))))
+         (org-mode)
+         (prog1 (progn ,@body)
+           (save-buffer)
+           (kill-buffer))))))
 
 (defun org-zk--skip-keywords ()
   "Move to the beginning of a files content."
