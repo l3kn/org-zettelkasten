@@ -147,6 +147,7 @@ then call ACTION with the collection that was selected."
        :todo-keyword (org-element-property :todo-keyword child)
        :todo-type (org-element-property :todo-type child)
        :title (org-element-property :raw-value child)
+       :id (org-element-property :ID child)
        :effort (org-element-property :EFFORT child)
        :style (org-element-property :STYLE child)))))
 

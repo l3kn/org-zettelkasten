@@ -1,6 +1,13 @@
 (require 'org-zk-query)
 
-;;; Font Faces
+;;; Commentary:
+;;
+;; Alternative to org-agenda that works on cached representations of
+;; headlines and easily scales to collections of multiple thousand
+;; files.
+;;
+;;; Code:
+;;;; Font Faces
 
 (defface org-zk-task-view-effort-face
   '((((class color) (background light)) (:foreground "#aaa"))
@@ -8,15 +15,7 @@
   "Face used for dates in the file view."
   :group 'org-zk)
 
-;;; Tabulated List Mode
-
-(defvar org-zk-task-view-format
-  (vector
-   '("Tag" 8 t)
-   '("P" 1 t)
-   '("Project" 20 t)
-   '("Effort" 6 t)
-   '("Title" 40 t)))
+;;;; Sorting Helpers
 
 (defun org-zk-task-view--sort-todo-keyword (kw)
   (cond
@@ -62,6 +61,16 @@
 (defun org-zk-task-view--sort (headlines)
   (sort headlines #'org-zk-task-view--sort-predicate))
 
+;;;; Tabulated List Mode
+
+(defvar org-zk-task-view-format
+  (vector
+   '("Todo" 8 t)
+   '("P" 1 t)
+   '("Project" 20 t)
+   '("Effort" 6 t)
+   '("Title" 40 t)))
+
 (defun org-zk-task-view-tabulate-title (hl)
   (if (null (plist-get hl :tags))
       (propertize
@@ -90,6 +99,9 @@
    ;;  (propertize (format "%c" p) 'face 'italic))
    (t (format "%c" p))))
 
+(defun org-zk-task-view-tabulate-effort (e)
+  (propertize e 'face 'org-zk-task-view-effort-face))
+
 ;; Works on a list of (file-entry . hl) pairs
 (defun org-zk-task-view-tabulate (file-hls)
   (mapcar
@@ -102,9 +114,8 @@
        (org-zk-task-view-tabulate-priority
         (or (plist-get (cdr file-hl) :priority) org-default-priority))
        (plist-get (car file-hl) :title)
-       (propertize
-        (or (plist-get (cdr file-hl) :effort) "")
-        'face 'org-zk-task-view-effort-face)
+       (org-zk-task-view-tabulate-effort
+        (or (plist-get (cdr file-hl) :effort) ""))
        (org-zk-task-view-tabulate-title (cdr file-hl)))))
    file-hls))
 
@@ -125,6 +136,8 @@
       (tabulated-list-print)
       (switch-to-buffer (current-buffer)))))
 
+;;;; Mode Definition
+
 (define-derived-mode org-zk-task-view-mode tabulated-list-mode "org-zk Tasks"
   "Major mode for listing org tasks"
   (hl-line-mode))
@@ -135,7 +148,7 @@
         (define-key map (kbd "RET") 'org-zk-task-view-open)
         (define-key map (kbd "e") 'org-zk-task-view-set-effort)
         (define-key map (kbd "t") 'org-zk-task-view-set-todo)
-        (define-key map (kbd "p") 'org-zk-task-view-set-priority)
+        (define-key map (kbd ",") 'org-zk-task-view-set-priority)
         map))
 
 (defun org-zk-task-view-open ()
@@ -143,37 +156,6 @@
   (let ((file-hl (tabulated-list-get-id)))
     (find-file (plist-get (car file-hl) :file))
     (goto-char (plist-get (cdr file-hl) :begin))))
-
-(defun org-zk-task-view-set-effort ()
-  (interactive)
-  (let* ((headline (tabulated-list-get-id))
-         (file (plist-get headline :file))
-         (cur (plist-get headline :effort))
-         (allowed (org-property-get-allowed-values nil org-effort-property))
-         (effort (org-quickselect-effort-prompt cur allowed)))
-    (tabulated-list-set-col "Effort" effort)
-    ;; TODO: Use in-file macro
-    (org-zk-in-file file
-      (goto-char (plist-get headline :begin))
-      (org-set-effort nil effort)
-      (save-buffer))
-    ;; FIXME, Hacky re-rendering of the updated list
-    (let ((p (point)))
-      (org-zk-next-tasks)
-      (goto-char p))))
-
-(defun org-zk-task-view-set-todo ()
-  (interactive)
-  (let* ((headline (tabulated-list-get-id))
-         (file (plist-get headline :file)))
-    (with-current-buffer (find-file-noselect file)
-      (goto-char (plist-get headline :begin))
-      (org-todo)
-      (save-buffer))
-    ;; FIXME, Hacky re-rendering of the updated list
-    (let ((p (point)))
-      (org-zk-next-tasks)
-      (goto-char p))))
 
 (defun org-zk-task-view-headlines (file-pred hl-pred)
   (let (headlines)
@@ -186,6 +168,71 @@
                  (push (cons entry hl) headlines))))))
     headlines))
 
-(org-zk-task-view-show "s:active" "t:NEXT")
+;;;; Functions for modifying tasks
+
+(defmacro org-zk-task-view-at-entry (entry &rest body)
+  "Execute BODY at the headline / file of ENTRY.
+Throws an error if ENTRY has no id or if its id can't be found in
+the target file."
+  (declare (indent defun))
+  `(let ((file (plist-get (car ,entry) :file))
+         (id (plist-get (cdr ,entry) :id)))
+     (if (null id)
+         (error "Headline entry has no id")
+       (org-zk-in-file file
+         (let ((position (org-id-find-id-in-file id file)))
+           (if position
+               (progn (goto-char (cdr position))
+                      ,@body)
+             (error "ID %s not found in %s" id file)))))))
+
+(defun org-zk-task-view-set-effort ()
+  (interactive)
+  (let* ((id (tabulated-list-get-id))
+         (file (plist-get (car id) :file))
+         (cur (plist-get (cdr id) :effort))
+         (allowed (org-property-get-allowed-values nil org-effort-property))
+         (effort (org-quickselect-effort-prompt cur allowed)))
+    (org-zk-task-view-at-entry id
+      (org-set-effort nil effort))
+    (tabulated-list-set-col
+     "Effort"
+     (org-zk-task-view-tabulate-effort effort))))
+
+(defun org-zk-task-view-set-priority ()
+  (interactive)
+  (let* ((id (tabulated-list-get-id))
+         (file (plist-get (car id) :file)))
+    ;; `org-priority' doesn't return a value, so we have to get the
+    ;; new priority by hand
+    (let ((priority
+           (org-zk-task-view-at-entry id
+             (call-interactively 'org-priority)
+             (fourth (org-heading-components)))))
+      (tabulated-list-set-col
+       "P"
+       (org-zk-task-view-tabulate-priority priority)))))
+
+(defun org-zk-task-view-set-todo ()
+  (interactive)
+  (let* ((id (tabulated-list-get-id))
+         (file (plist-get (car id) :file)))
+    (let  ((todo
+            (org-zk-task-view-at-entry id
+              (call-interactively 'org-todo)
+              (third (org-heading-components)))))
+      (tabulated-list-set-col
+       "Todo"
+       (org-zk-task-view-tabulate-todo-keyword todo)))))
+
+;;;; Predefined Views
+
+(defun org-zk-task-view-next ()
+  (interactive)
+  (org-zk-task-view-show "s:active" "t:NEXT"))
+
+;;;; Footer
 
 (provide 'org-zk-task-view)
+
+;;; org-zk-task-view.el ends here
