@@ -391,7 +391,9 @@ name-fn to generate a filename."
   (org-zk-select-collection
    (lambda (c)
      (let* ((collection (cdr c))
-            (title (or title (org-zk-read-title)))
+            (title (if title
+                       (org-zk-titlecase (string-trim title))
+                     (org-zk-read-title)))
             (name-fn (org-zk-collection-name-fn collection))
             (setup-fn (org-zk-collection-setup-fn collection))
             (name (funcall name-fn title))
