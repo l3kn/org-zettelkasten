@@ -286,3 +286,5 @@ the expected output or used to replace the =_expected= file if the
 output generated was valid.
 ** Credits
 - The file view uses the same font faces as [[https://github.com/skeeto/elfeed][skeeto/elfeed]].
+** License
+Copyright © Leon Rische and contributors. Distributed under the GNU General Public License, Version 3
