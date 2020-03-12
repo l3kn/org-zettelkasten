@@ -54,6 +54,9 @@ The result of the last expression in BODY is returned."
       (org-zk--skip-keywords)
       (point))))
 
+(defun org-zk-buffer-file-name ()
+  "Wrapper around `buffer-file-name' that works in capture buffers."
+  (buffer-file-name (buffer-base-buffer)))
 
 ;;; Collection Setup
 
@@ -269,7 +272,7 @@ creates a file with that title in collection of the current file."
        (insert (org-zk-make-link
                 (file-relative-name
                  (cdr selection)
-                 (file-name-directory (buffer-file-name)))
+                 (file-name-directory (org-zk-buffer-file-name)))
                 (org-zk-file-title (cdr selection))))))))
 
 ;;;; Finding Linked Files
