@@ -261,14 +261,20 @@ creates a file with that title in collection of the current file."
   (interactive)
   (org-zk-select-file
    (lambda (selection)
-     (unless (or (bolp) (looking-at " "))
+     ;; Make sure there is a space in front of the link,
+     ;; if that is necessary
+     (unless (or (bolp)
+                 (looking-at " ")
+                 (looking-at "("))
        (insert " "))
      (if (stringp selection)
          (let* ((title (org-zk-titlecase (string-trim selection)))
                 (target (org-zk-create-file
                          title
                          (org-zk-collection-for-file (buffer-file-name)))))
-           (insert (org-zk-make-link target title)))
+           (insert (org-zk-make-link
+                    (file-relative-name target (file-name-directory (org-zk-buffer-file-name)))
+                    title)))
        (insert (org-zk-make-link
                 (file-relative-name
                  (cdr selection)
