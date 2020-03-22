@@ -388,15 +388,15 @@ If either TARGET-NEW or DESC-NEW is nil, that part of the link is left unchanged
 if so, insert a link to it in the edge list, prompting for a description."
   (interactive)
   (if-let ((res (with-temp-buffer
-                  (yank)
-                  (thing-at-point 'url (point)))))
-      (org-zk-add-plain-link res (read-string "Description: "))
-    (message "Kill-ring contents are not a URL")))
+  (yank)
+  (thing-at-point 'url (point)))))
+    (org-zk-add-plain-link res (read-string "Description: "))
+  (message "Kill-ring contents are not a URL")))
 ;;; Creating / Renaming Files
 
-(defun org-zk-read-title ()
+(defun org-zk-read-title (&optional initial-input)
   "Read a string to use as document title."
-  (org-zk-titlecase (string-trim (read-string "Title: "))))
+  (org-zk-titlecase (string-trim (read-string "Title: " initial-input))))
 
 (defun org-zk-new-file (&optional title)
   "Create a new org zettelkasten file.
@@ -438,14 +438,26 @@ Returns the name of the new file"
       (kill-buffer))
     file))
 
+
 (defun org-zk-rename (title)
   "Rename the current zettel, prompting for a new TITLE."
   (interactive (list (org-zk-read-title)))
   (org-zk-keywords-set-or-add "TITLE" title)
   (let ((target (buffer-file-name)))
-    (dolist (file (org-zk-files-linking-here))
-      (org-zk-in-file (car file)
+    (dolist (linking-file (org-zk-files-linking-here))
+      (org-zk-in-file linking-file
         (org-zk-update-link target nil title)))))
+
+;; TODO: Less duplication
+(defun org-zk-rename-file (file title)
+  "Change the title of FILE to TITLE.
+This updates all links to FILE to use the new title as
+description."
+  (org-zk-in-file file
+    (org-zk-keywords-set-or-add "TITLE" title))
+  (dolist (linking-file (org-zk-files-linking-to file))
+    (org-zk-in-file linking-file
+      (org-zk-update-link file nil title))))
 
 ;;; Deleting / Slurping Files
 

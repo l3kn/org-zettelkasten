@@ -111,6 +111,7 @@
         (define-key map (kbd "RET") 'org-zk-file-view-open)
         (define-key map (kbd "S") 'org-zk-file-view)
         (define-key map (kbd "s") 'org-zk-file-view)
+        (define-key map (kbd "R") 'org-zk-file-view-rename)
         (define-key map (kbd "k") 'org-zk-file-view-add-keyword)
         (define-key map (kbd "K") 'org-zk-file-view-edit-keywords)
         map))
@@ -146,6 +147,15 @@
     (tabulated-list-set-col "Title" (org-zk-file-view-tabulate-title entry))
     (org-zk-set-file-keywords
      (plist-get entry :file) kws)))
+
+(defun org-zk-file-view-rename ()
+  (interactive)
+  (let* ((entry (tabulated-list-get-id))
+         (file (plist-get entry :file))
+         (title (org-zk-read-title (plist-get entry :title))))
+    (org-zk-rename-file file title)
+    (plist-put entry :title title)
+    (tabulated-list-set-col "Title" (org-zk-file-view-tabulate-title entry))))
 
 (defun org-zk-set-file-keywords (file kws)
   (org-zk-in-file file
