@@ -1,4 +1,7 @@
-;;; Configuration
+;;; Customization
+
+(defcustom org-zk-alias-keyword "ZK_ALIAS"
+  "Keyword for file title aliases")
 
 (defvar org-zk-gtd-states
   '("active"
@@ -172,6 +175,12 @@ then call ACTION with the collection that was selected."
        :title
        (or (alist-get "TITLE" org-keywords nil nil #'string=)
            (file-relative-name filename (plist-get collection :path)))
+       :aliases
+       (mapcar
+        #'cdr
+        (remove-if-not
+         (lambda (kv) (string= (car kv) org-zk-alias-keyword))
+         org-keywords))
        :collection (org-zk-collection-for-file filename)
        :headlines (org-zk--cache-headlines el)))))
 
@@ -227,15 +236,36 @@ if not, return its filename."
        (if collection
            (cons
             (format "%s (%s)" title (plist-get collection :name))
-            filename)
+            (cons title filename))
          (cons (format "%s" title) filename))))))
+
+(defun org-zk-files-with-titles-and-aliases ()
+  "Return an alist of entries (title-with-collection . filename).
+Also treats file aliases as titles."
+  (org-el-cache-flatmap
+   org-zk-cache
+   (lambda (filename entry)
+     (let* ((collection (plist-get entry :collection))
+            (col-name (plist-get collection :name))
+            (titles (cons (plist-get entry :title)
+                          (plist-get entry :aliases))))
+       (if collection
+           (mapcar
+            (lambda (title)
+              (cons
+               (format "%s (%s)" title col-name)
+               (cons title filename)))
+            titles)
+         (mapcar
+          (lambda (title) (cons (format "%s" title) (cons title filename)))
+          titles))))))
 
 (defvar org-zk-ivy-histoy nil)
 
 (defun org-zk-select-file (action)
   (ivy-read
    "File: "
-   (org-zk-files-with-titles)
+   (org-zk-files-with-titles-and-aliases)
    :history 'org-zk-ivy-history
    :action action))
 
@@ -246,7 +276,7 @@ if not, return its filename."
    (lambda (selection)
      (if (stringp selection)
          (org-zk-new-file selection)
-         (find-file (cdr selection))))))
+         (find-file (cddr selection))))))
 
 ;;; Linking Files
 
@@ -277,9 +307,9 @@ creates a file with that title in collection of the current file."
                     title)))
        (insert (org-zk-make-link
                 (file-relative-name
-                 (cdr selection)
+                 (cddr selection)
                  (file-name-directory (org-zk-buffer-file-name)))
-                (org-zk-file-title (cdr selection))))))))
+                (cadr selection)))))))
 
 ;;;; Finding Linked Files
 
@@ -487,7 +517,7 @@ buffer"
 buffer."
   (interactive)
   (org-zk-select-file
-   (lambda (selection) (org-zk--file-to-headline (cdr selection)))))
+   (lambda (selection) (org-zk--file-to-headline (cddr selection)))))
 
 ;;; (Changing) File Keywords
 
@@ -517,6 +547,79 @@ buffer."
 (defun org-zk-read-keyword ()
   "Read a keyword."
   (ivy-completing-read "Keyword: " (org-zk-keywords-used)))
+
+(defun org-zk-add-alias (alias)
+  (interactive (list (read-string "Alias: ")))
+  (org-zk-keywords-add org-zk-alias-keyword alias))
+
+;;; Refile
+
+(defun org-zk-refile--position (file regexp)
+  "Find point of the first match of REGEXP in FILE.
+Used to generate target positions for refiling to headlines."
+  (org-zk-in-file file
+  (save-excursion
+  (goto-char (point-min))
+  (and (re-search-forward regexp)
+           (point-at-bol)))))
+
+;; `org-refile' is quite complicated, the best way to implement a
+;; refile function seems to be generating a rfloc to pass to that
+;; function.
+;;
+;; Refile Locations are lists of four elements:
+;;
+;; 1. The name used for showing them in `completing-read'
+;; 2. The file to refile to
+;; 3. nil or a regex matching the target heading
+;; 4. point at target heading
+;;
+(defun org-zk-refile (&optional arg)
+  (interactive "P")
+  (org-zk-select-file
+   (lambda (file-selection)
+     (org-zk-refile--select-heading
+      (cddr file-selection)
+      (lambda (hl-selection)
+        (if (cdr hl-selection)
+            (let ((hl-regexp
+                   (format org-complex-heading-regexp-format
+                           (regexp-quote (cdr hl-selection)))))
+             (org-refile arg nil
+                         (list
+                          nil
+                          (cddr file-selection)
+                          hl-regexp
+                          (org-zk-refile--position
+                           (cddr file-selection)
+                           hl-regexp))))
+          (org-refile
+           arg nil
+           (list nil (cddr file-selection) nil nil))))))))
+
+
+;; Use cached headlines and add an option to refile as a new top-level
+;; heading (value: nil)
+(defun org-zk-refile--select-heading (file action)
+  "Call ACTION with a heading of FILE as refile target."
+  (let ((headlines
+         (cl-remove-if-not
+          (lambda (hl)
+            (<= (plist-get hl :level) org-zk-refile-maxlevel))
+          (plist-get
+           (org-el-cache-get org-zk-cache file)
+           :headlines))))
+    (if (null headlines)
+        (funcall action (cons nil nil))
+      (ivy-read
+       "File: "
+       (cons
+        (cons "<As top-level heading>" nil)
+        (mapcar
+         (lambda (hl) (cons (plist-get hl :title)
+                       (plist-get hl :title)))
+         headlines))
+       :action action))))
 
 ;;; Agenda Hacks
 
@@ -567,13 +670,13 @@ buffer."
 buffer."
   (interactive)
   (org-zk-select-file
-   (lambda (selection) (org-zk--file-to-headline (cdr selection)))))
+   (lambda (selection) (org-zk--file-to-headline (cddr selection)))))
 
 (defun org-zk-delete-file (file)
   "Delete FILE, removing all links to it."
   (let ((file (expand-file-name file)))
-    (dolist (entry (org-zk-files-linking-to file))
-      (org-zk-in-file (plist-get entry :file)
+    (dolist (other-file (org-zk-files-linking-to file))
+      (org-zk-in-file other-file
         (org-zk-delete-link file)
         (save-buffer)
         (kill-buffer))))

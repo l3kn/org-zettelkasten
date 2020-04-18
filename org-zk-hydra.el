@@ -1,4 +1,5 @@
 (require 'hydra)
+(require 'org-zk-core)
 (require 'org-zk-keywords)
 
 (defhydra org-zk-hydra (:columns 4)
@@ -11,7 +12,11 @@
   ("o" org-zk-open-file "Open File")
   ("R" org-zk-rename "Rename")
   ("k" org-zk-add-keyword "Add Keyword")
+  ("a" org-zk-add-alias "Add Alias")
+  ("w" org-zk-refile "Refile")
   ("K" org-zk-edit-keywords "Add Keyword")
+  ("G" org-zk-graphviz-show "Show Graph")
+  ("j" org-zk-journal-today "Journal" :exit t)
   ;; I'm using C-b as a hotkey for the hydra
   ;; double-tapping b opens a file
   ("b" org-zk-open-file "Open File")
