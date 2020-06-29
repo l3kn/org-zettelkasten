@@ -574,6 +574,10 @@ Used to generate target positions for refiling to headlines."
 ;; 3. nil or a regex matching the target heading
 ;; 4. point at target heading
 ;;
+
+(defvar org-fc-refile--last-target nil
+  "Last target (file/heading) of org-fc refile.")
+
 (defun org-zk-refile (&optional arg)
   (interactive "P")
   (org-zk-select-file
@@ -585,18 +589,37 @@ Used to generate target positions for refiling to headlines."
             (let ((hl-regexp
                    (format org-complex-heading-regexp-format
                            (regexp-quote (cdr hl-selection)))))
-             (org-refile arg nil
-                         (list
-                          nil
-                          (cddr file-selection)
-                          hl-regexp
-                          (org-zk-refile--position
+              (setq org-zk-refile--last-target (cons (cddr file-selection) hl-regexp))
+              (org-refile arg nil
+                          (list
+                           nil
                            (cddr file-selection)
-                           hl-regexp))))
+                           hl-regexp
+                           (org-zk-refile--position
+                            (cddr file-selection)
+                            hl-regexp))))
+          (setq org-zk-refile--last-target (cons (cddr file-selection) nil))
           (org-refile
            arg nil
            (list nil (cddr file-selection) nil nil))))))))
 
+(defun org-zk-refile-last (arg)
+  "Refile to last refile location."
+  (interactive "P")
+  (let ((target org-zk-refile--last-target))
+   (cond
+    ((null target) (message "No last target"))
+    ((null (cdr target))
+     (org-refile arg nil (list nil (car target) nil nil)))
+    (t
+     (org-refile arg nil
+                 (list
+                  nil
+                  (car target)
+                  (cdr target)
+                  (org-zk-refile--position
+                   (car target)
+                   (cdr target))))))))
 
 ;; Use cached headlines and add an option to refile as a new top-level
 ;; heading (value: nil)
