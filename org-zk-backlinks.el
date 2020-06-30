@@ -1,3 +1,32 @@
+;;; org-zk-backlink.el --- Backlink sidebar for org-zettelkasten -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2020  Leon Rische
+
+;; Author: Leon Rische <emacs@leonrische.me>
+;; Url: https://www.leonrische.me/pages/org_flashcards.html
+;; Package-requires: ((emacs "26.3") (tablist "0.15.0"))
+;; Version: 0.0.1
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+;;; Commentary:
+;;
+;; A sidebar for showing all files linking to the one currently opened
+;;
+;;; Code:
+
+(require 'org-zk-core)
+
 ;; TODO: Group by source file
 (defun org-zk-backlinks-for-file (file)
   "Files linking to FILE."
@@ -6,9 +35,9 @@
     (org-el-cache-each
      org-zk-cache
      (lambda (key value)
-       (dolist (link (plist-get value :links))
+  (dolist (link (plist-get value :links))
          (if (string= file (plist-get link :full-path))
-             (push (cons key link) links)))))
+    (push (cons key link) links)))))
     links))
 
 (defun org-zk-backlinks-for-buffer ()
@@ -64,7 +93,15 @@
               (car backlink)
               (or (plist-get entry :title) (car backlink))))
             (insert (plist-get (cdr backlink) :context) "\n")
-            (insert "\n"))))
+            (insert "\n")
+            )))
+      (goto-char (point-min))
+      (let ((inhibit-message t))
+        (org-global-cycle))
       (read-only-mode))))
 
+;;;; Footer
+
 (provide 'org-zk-backlinks)
+
+;;; org-zk-backlinks.el ends here
