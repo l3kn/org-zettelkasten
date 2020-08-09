@@ -1,0 +1,3 @@
+#!/usr/bin/bash
+
+find ~/org -name "*.org" | xargs -n 2500 -P 4 awk -f ~/src/org-zettelkasten/awk/calendar.awk

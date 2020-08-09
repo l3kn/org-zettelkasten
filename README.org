@@ -108,7 +108,7 @@ Here is the configuration I'm using for my personal setup:
     (insert "#+SETUPFILE: ~/org/website/setup.org\n")
     (org-zk-default-setup-fn title))
 
-  (setq org-zk-collections
+  (org-zk-set-collections
         '((:path "~/org/flashcards/" :name "fc")
           (:path "~/org/sandbox/" :name "sandbox")
           (:path "~/org/archives/" :name "archives" :ignore t)
@@ -189,6 +189,14 @@ files takes around 5s.
 
 Cache entries are updated when a =.org= file is saved, created, moved
 or deleted.
+** Completions
+Org-zk provides a company backend for completing file titles / aliases
+into link to the file.
+
+#+begin_src emacs-lisp
+  (require 'company-org-zk)
+  (company-org-zk-init)
+#+end_src
 ** Derived Tasks
 Some tasks can be fully derived from the current state of the rest of
 the system.
