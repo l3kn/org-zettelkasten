@@ -10,10 +10,7 @@
     "cancelled"
     "done"))
 
-(defvar org-zk-default-file-priority "B")
-(defvar org-zk-default-file-priorities '("A" "B" "C"))
 (defvar org-zk-default-file-state "active")
-
 (defvar org-zk-gtd-state-keyword "GTD_STATE")
 
 (defcustom org-zk-directory "~/org"
@@ -21,7 +18,14 @@
   :type 'string
   :group 'org-zk)
 
+
 ;;; Helper Functions / Macros
+
+(defun org-zk-member-p (file)
+  "Check if FILE is part of org-zk."
+  (string-prefix-p
+   (expand-file-name (file-truename org-zk-directory))
+   (expand-file-name (file-truename file))))
 
 (defun org-zk-trim-string (string)
   "Remove trailing newlines from STRING"
@@ -36,8 +40,9 @@ The result of the last expression in BODY is returned."
   `(let ((buffer (find-buffer-visiting ,path)))
      (if buffer
          (with-current-buffer buffer
-           (prog1 (progn ,@body)
-             (org-el-cache-process-buffer)))
+           (save-excursion
+             (prog1 (progn ,@body)
+               (org-el-cache-process-buffer))))
        (with-current-buffer (find-file-noselect ,path)
          (org-mode)
          (prog1 (progn ,@body)
@@ -61,6 +66,11 @@ The result of the last expression in BODY is returned."
   "Wrapper around `buffer-file-name' that works in capture buffers."
   (buffer-file-name (buffer-base-buffer)))
 
+(defun org-zk-buffer-member-p ()
+  "Check if the current buffer is part of org-zk."
+  (if-let ((filename (org-zk-buffer-file-name)))
+   (org-zk-member-p filename)))
+
 ;;; Collection Setup
 
 (defun org-zk-escape-filename (str)
@@ -78,11 +88,24 @@ The result of the last expression in BODY is returned."
 
 (defun org-zk-default-setup-fn (title)
   (insert "#+TITLE: " title "\n")
-  (insert "#+CREATED: ")
+  (insert "#+DATE: ")
   (org-insert-time-stamp (current-time) t t)
   (insert "\n\n"))
 
 (defvar org-zk-file-blacklist '("./" "../" ".git/"))
+
+(defvar org-zk--collections '())
+
+(defun org-zk-set-collections (collections)
+  "Set the zettelkasten collections to COLLECTIONS.
+This should be used instead of setting the variable directly
+because collection paths need to be in canonical form."
+  (setq org-zk--collections
+        (mapcar (lambda (c)
+                  (plist-put
+                   c :path
+                   (expand-file-name (plist-get c :path))))
+                collections)))
 
 (defun org-zk-collection-ignore-p (p) (plist-get p :ignore))
 (defun org-zk-collection-name-fn (p)
@@ -93,12 +116,10 @@ The result of the last expression in BODY is returned."
 (defun org-zk-collection-for-file (filename)
   "Find the (sub)collection FILENAME belongs to.
 Returns NIL if FILENAME is not managed by org-zettelkasten."
-  (seq-find
-   (lambda (c)
-     (string-prefix-p
-      (expand-file-name (plist-get c :path))
-      (expand-file-name filename)))
-   org-zk-collections))
+  (let ((filename (expand-file-name filename)))
+    (seq-find
+     (lambda (c) (string-prefix-p (plist-get c :path) filename))
+     org-zk--collections)))
 
 (defun org-zk-select-collection (action)
   "Select a collection by its name,
@@ -107,7 +128,7 @@ then call ACTION with the collection that was selected."
   (let ((collection
          (mapcar
           (lambda (c) (cons (plist-get c :name) c))
-          org-zk-collections)))
+          org-zk--collections)))
     (ivy-read "Collection: " collection :action action)))
 
 ;;; Cache Selector Functions
@@ -140,30 +161,56 @@ then call ACTION with the collection that was selected."
                   (org-element-property :key e)
                   (org-element-property :value e)))))))
 
-(defun org-zk--cache-headlines (el)
-  (org-element-map el 'headline
-    (lambda (child)
-      (list
-       :begin (org-element-property :begin child)
-       :deadline (org-element-property :deadline child)
-       :scheduled (org-element-property :scheduled child)
-       :level (org-element-property :level child)
-       :priority (org-element-property :priority child)
-       :tags (org-element-property :tags child)
-       :todo-keyword (org-element-property :todo-keyword child)
-       :todo-type (org-element-property :todo-type child)
-       :title (org-element-property :raw-value child)
-       :id (org-element-property :ID child)
-       :effort (org-element-property :EFFORT child)
-       :style (org-element-property :STYLE child)))))
+(defclass org-zk-clock ()
+  ((begin :initarg :begin)
+   (end :initarg :end)
+   (status :initarg :status)))
+
+(defun org-zk-clock-from-element (element)
+  (let ((value (org-element-property :value element)))
+    (if (eq (org-element-property :status element) 'closed)
+        (make-instance
+         'org-zk-clock
+         :begin (org-zk-time--ts-from-element value)
+         :end (org-zk-time--ts-from-element-end value)
+         :status 'closed)
+      (make-instance
+         'org-zk-clock
+         :begin (org-zk-time--ts-from-element value)
+         :end nil
+         :status 'running))))
+
+(defun org-zk--cache-headlines (el filetags)
+  (let ((itags (org-remove-uninherited-tags filetags)))
+    (org-element-map el 'headline
+      (lambda (child)
+        (list
+         :begin (org-element-property :begin child)
+         :deadline (org-element-property :deadline child)
+         :scheduled (org-element-property :scheduled child)
+         :level (org-element-property :level child)
+         :priority (org-element-property :priority child)
+         :tags (delete-dups
+                (append itags (org-element-property :tags child)))
+         :todo-keyword (org-element-property :todo-keyword child)
+         :todo-type (org-element-property :todo-type child)
+         :title (org-element-property :raw-value child)
+         :id (org-element-property :ID child)
+         :effort (org-element-property :EFFORT child)
+         ;; Work on element contents & don't recurse into headlines
+         ;; to extract only the "direct" clocks of a headline
+         :clocks (org-element-map (org-element-contents child) 'clock
+                   #'org-zk-clock-from-element
+                   nil nil 'headline)
+         :style (org-element-property :STYLE child))))))
 
 ;;; Cache Setup
 
-(def-org-el-cache org-zk-cache
-  (list org-zk-directory)
+(def-org-el-cache org-zk-cache (list org-zk-directory)
   (lambda (filename el)
-    (let ((org-keywords (org-zk--cache-keywords el))
-          (collection (org-zk-collection-for-file filename)))
+    (let* ((org-keywords (org-zk--cache-keywords el))
+           (collection (org-zk-collection-for-file filename))
+           (filetags (split-string (alist-get "FILETAGS" org-keywords "" nil #'string=) ":" t)))
       (list
        :file filename
        :links (org-zk--cache-links el)
@@ -171,7 +218,10 @@ then call ACTION with the collection that was selected."
        :keywords
        (split-string (alist-get "KEYWORDS" org-keywords "" nil #'string=) " " t)
        :created
-       (alist-get "CREATED" org-keywords nil nil #'string=)
+       (alist-get "DATE" org-keywords nil nil #'string=)
+       :published
+       ;; TODO: Use keyword variable
+       (alist-get "PUBLISHED" org-keywords nil nil #'string=)
        :title
        (or (alist-get "TITLE" org-keywords nil nil #'string=)
            (file-relative-name filename (plist-get collection :path)))
@@ -182,7 +232,7 @@ then call ACTION with the collection that was selected."
          (lambda (kv) (string= (car kv) org-zk-alias-keyword))
          org-keywords))
        :collection (org-zk-collection-for-file filename)
-       :headlines (org-zk--cache-headlines el)))))
+       :headlines (org-zk--cache-headlines el filetags)))))
 
 ;;;; File keywords
 
@@ -199,18 +249,13 @@ if not, return its filename."
 (defun org-zk-cache-update ()
   "Update the zettelkasten cache."
   (interactive)
-  (org-el-cache-update org-zk-cache)
-  (if (boundp 'org-zk-clocking-cache)
-    (org-el-cache-update org-zk-clocking-cache)))
+  (org-el-cache-update org-zk-cache))
 
 (defun org-zk-cache-force-update ()
   "Force-update / recreate the zettelkasten cache."
   (interactive)
   (org-el-cache-clear org-zk-cache)
-  (org-el-cache-update org-zk-cache)
-  (when (boundp 'org-zk-clocking-cache)
-    (org-el-cache-clear org-zk-clocking-cache)
-    (org-el-cache-update org-zk-clocking-cache)))
+  (org-el-cache-update org-zk-cache))
 
 ;;;; Cache Update Hooks
 
@@ -240,6 +285,20 @@ if not, return its filename."
          (cons (format "%s" title) filename))))))
 
 (defun org-zk-files-with-titles-and-aliases ()
+  "Return an alist of entries (title-with-collection . filename).
+Also treats file aliases as titles."
+  (mapcar
+   (lambda (file-title)
+     (let ((collection (org-zk-collection-for-file (car file-title))))
+       (if collection
+           (cons
+            (format "%s (%s)" (cadr file-title) (plist-get collection :name))
+            (cons (cadr file-title) (car file-title)))
+         (cons (format "%s" (cadr file-title))
+               (cons (cadr file-title) (car file-title))))))
+   (org-zk-awk-titles)))
+
+(defun org-zk-files-with-titles-and-aliases_ ()
   "Return an alist of entries (title-with-collection . filename).
 Also treats file aliases as titles."
   (org-el-cache-flatmap
@@ -496,9 +555,9 @@ description."
   (let ((file (expand-file-name file)))
     (dolist (entry (org-zk-files-linking-to file))
       (org-zk-in-file (plist-get entry :file)
-        (org-zk-delete-link file)
-        (save-buffer)
-        (kill-buffer))))
+  (org-zk-delete-link file)
+  (save-buffer)
+  (kill-buffer))))
   (delete-file file))
 
 (defun org-zk--file-to-headline (file)
@@ -520,6 +579,12 @@ buffer."
    (lambda (selection) (org-zk--file-to-headline (cddr selection)))))
 
 ;;; (Changing) File Keywords
+
+(defun org-zk-set-file-keywords (file kws)
+  (org-zk-in-file file
+    (org-zk-keywords-set-or-add
+     "KEYWORDS"
+     (mapconcat #'identity kws " "))))
 
 (defun org-zk-keywords-used ()
   "List of all keywords used."
@@ -554,139 +619,6 @@ buffer."
 
 ;;; Refile
 
-(defun org-zk-refile--position (file regexp)
-  "Find point of the first match of REGEXP in FILE.
-Used to generate target positions for refiling to headlines."
-  (org-zk-in-file file
-  (save-excursion
-  (goto-char (point-min))
-  (and (re-search-forward regexp)
-           (point-at-bol)))))
-
-;; `org-refile' is quite complicated, the best way to implement a
-;; refile function seems to be generating a rfloc to pass to that
-;; function.
-;;
-;; Refile Locations are lists of four elements:
-;;
-;; 1. The name used for showing them in `completing-read'
-;; 2. The file to refile to
-;; 3. nil or a regex matching the target heading
-;; 4. point at target heading
-;;
-
-(defvar org-fc-refile--last-target nil
-  "Last target (file/heading) of org-fc refile.")
-
-(defun org-zk-refile (&optional arg)
-  (interactive "P")
-  (org-zk-select-file
-   (lambda (file-selection)
-     (org-zk-refile--select-heading
-      (cddr file-selection)
-      (lambda (hl-selection)
-        (if (cdr hl-selection)
-            (let ((hl-regexp
-                   (format org-complex-heading-regexp-format
-                           (regexp-quote (cdr hl-selection)))))
-              (setq org-zk-refile--last-target (cons (cddr file-selection) hl-regexp))
-              (org-refile arg nil
-                          (list
-                           nil
-                           (cddr file-selection)
-                           hl-regexp
-                           (org-zk-refile--position
-                            (cddr file-selection)
-                            hl-regexp))))
-          (setq org-zk-refile--last-target (cons (cddr file-selection) nil))
-          (org-refile
-           arg nil
-           (list nil (cddr file-selection) nil nil))))))))
-
-(defun org-zk-refile-last (arg)
-  "Refile to last refile location."
-  (interactive "P")
-  (let ((target org-zk-refile--last-target))
-   (cond
-    ((null target) (message "No last target"))
-    ((null (cdr target))
-     (org-refile arg nil (list nil (car target) nil nil)))
-    (t
-     (org-refile arg nil
-                 (list
-                  nil
-                  (car target)
-                  (cdr target)
-                  (org-zk-refile--position
-                   (car target)
-                   (cdr target))))))))
-
-;; Use cached headlines and add an option to refile as a new top-level
-;; heading (value: nil)
-(defun org-zk-refile--select-heading (file action)
-  "Call ACTION with a heading of FILE as refile target."
-  (let ((headlines
-         (cl-remove-if-not
-          (lambda (hl)
-            (<= (plist-get hl :level) org-zk-refile-maxlevel))
-          (plist-get
-           (org-el-cache-get org-zk-cache file)
-           :headlines))))
-    (if (null headlines)
-        (funcall action (cons nil nil))
-      (ivy-read
-       "File: "
-       (cons
-        (cons "<As top-level heading>" nil)
-        (mapcar
-         (lambda (hl) (cons (plist-get hl :title)
-                       (plist-get hl :title)))
-         headlines))
-       :action action))))
-
-;;; Agenda Hacks
-
-(defun org-zk--has-todos (entry)
-  (plusp
-   (count-if
-    (lambda (hl)
-  (or (string= (plist-get hl :todo-keyword) "NEXT")
-          (string= (plist-get hl :todo-keyword) "TODO")))
-    (plist-get entry :headlines))))
-
-(defun org-zk--agenda-files ()
-  (let ((files))
-    (org-el-cache-each
-     org-zk-cache
-     (lambda (key value)
-       (let* ((keywords (plist-get value :org-keywords))
-              (state (alist-get "GTD_STATE" keywords nil nil 'string=)))
-         (if (or
-              (string= state "active")
-              (and (null state) (org-zk--has-todos value)))
-             (push key files)))))
-    files))
-
-(defun org-zk-agenda ()
-  (interactive)
-  (setq org-agenda-files (org-zk--agenda-files))
-  (org-agenda))
-
-(defun org-zk-agenda-list ()
-  (interactive)
-  (setq org-agenda-files (org-zk--agenda-files))
-  (org-agenda-list))
-
-(defun org-zk-todo-list ()
-  (interactive)
-  (setq org-agenda-files (org-zk--agenda-files))
-  (org-todo-list))
-
-(defun org-zk-ql-next ()
-  (interactive)
-  (org-ql-search
-    (org-zk--agenda-files)
-    '(todo "NEXT")))
 
 (defun org-zk-slurp ()
   "Select a file, then insert it as a headline in the current
@@ -704,20 +636,6 @@ buffer."
         (save-buffer)
         (kill-buffer))))
   (delete-file file))
-
-;;; Headline IDs
-
-(defun org-zk-add-ids-to-buffer ()
-  "Make sure all task headlines in the current file have an ID property"
-  (interactive)
-  ;; Can't use `org-map-entries' as it opens a prompt when run inside
-  ;; a buffer that hasn't been saved yet (Non-existing file / org
-  ;; agenda)
-  (save-excursion
-    (goto-char (point-max))
-    (while (outline-previous-heading)
-      (if (org-entry-is-todo-p)
-          (org-id-get-create)))))
 
 ;;; Exports
 
